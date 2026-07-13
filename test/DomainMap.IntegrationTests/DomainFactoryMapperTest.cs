@@ -26,6 +26,17 @@ namespace DomainMap.IntegrationTests
 
             Should.Throw<ArgumentOutOfRangeException>(() => OrderDomainMap.Map(command));
         }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData(" ")]
+        public void DoesNotBypassRequiredCustomerNameValidation(string? customerName)
+        {
+            var command = new PlaceOrder(Guid.NewGuid(), customerName!, 42.50m);
+
+            Should.Throw<ArgumentException>(() => OrderDomainMap.Map(command));
+        }
     }
 
     public sealed record PlaceOrder(Guid Id, string CustomerName, decimal Total);
@@ -49,8 +60,12 @@ namespace DomainMap.IntegrationTests
 
         public static Order Place(OrderId id, string customerName, decimal total)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(customerName);
-            ArgumentOutOfRangeException.ThrowIfNegative(total);
+            if (string.IsNullOrWhiteSpace(customerName))
+                throw new ArgumentException("A customer name is required.", nameof(customerName));
+
+            if (total < 0)
+                throw new ArgumentOutOfRangeException(nameof(total), total, "An order total cannot be negative.");
+
             return new Order(id, customerName, total);
         }
     }
