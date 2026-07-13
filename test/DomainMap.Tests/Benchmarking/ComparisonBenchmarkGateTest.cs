@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DomainMap.Benchmarks;
 
 namespace DomainMap.Tests.Benchmarking;
@@ -62,19 +63,16 @@ public class ComparisonBenchmarkGateTest
     private static string WriteReport(params (string Method, double Mean, double AllocatedBytes)[] benchmarks)
     {
         var path = Path.Combine(Path.GetTempPath(), $"domainmap-benchmark-{Guid.NewGuid():N}.json");
-        var entries = string.Join(
-            ",",
-            benchmarks.Select(x =>
-                $$"""
-                    {
-                      "Method": "{{x.Method}}",
-                      "Statistics": { "Mean": {{x.Mean}} },
-                      "Memory": { "BytesAllocatedPerOperation": {{x.AllocatedBytes}} }
-                    }
-                    """
-            )
-        );
-        File.WriteAllText(path, $$"""{ "Benchmarks": [{{entries}}] }""");
+        var report = new
+        {
+            Benchmarks = benchmarks.Select(x => new
+            {
+                x.Method,
+                Statistics = new { x.Mean },
+                Memory = new { BytesAllocatedPerOperation = x.AllocatedBytes },
+            }),
+        };
+        File.WriteAllText(path, JsonSerializer.Serialize(report));
         return path;
     }
 }
