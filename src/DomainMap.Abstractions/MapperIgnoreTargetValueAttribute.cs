@@ -1,0 +1,35 @@
+using System.Diagnostics;
+
+namespace DomainMap.Abstractions;
+
+/// <summary>
+/// Ignores a target enum value from the mapping.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+[Conditional("DOMAINMAP_ABSTRACTIONS_SCOPE_RUNTIME")]
+public sealed class MapperIgnoreTargetValueAttribute : Attribute
+{
+    /// <summary>
+    /// Ignores the specified target enum value from the mapping.
+    /// </summary>
+    /// <param name="target">The target enum value to ignore.</param>
+    public MapperIgnoreTargetValueAttribute(object target)
+    {
+        TargetValue = (Enum)target;
+    }
+
+    /// <summary>
+    /// Gets the target enum value which should be ignored from the mapping.
+    /// </summary>
+    public Enum? TargetValue { get; }
+
+    /// <summary>
+    /// Gets or sets the justification for ignoring the target enum value.
+    /// This is only used for documentation purposes and does not have any effect on the mapping.
+    /// </summary>
+    /// <remarks>
+    /// You can enforce the presence of justifications by setting the diagnostic severity of <c>RMG096</c> in your
+    /// <c>.editorconfig</c> to any value other than <c>hidden</c>.
+    /// </remarks>
+    public string? Justification { get; set; }
+}

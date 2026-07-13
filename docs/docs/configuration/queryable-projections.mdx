@@ -1,0 +1,252 @@
+---
+sidebar_position: 17
+description: Use queryable projections to map queryable objects and optimize ORM performance
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# IQueryable projections
+
+DomainMap does support `IQueryable<T>` projections:
+
+<Tabs>
+  <TabItem value="definition" label="Mapper definition">
+
+```csharp
+[DomainMapper]
+public static partial class CarMapper
+{
+    // highlight-start
+    public static partial IQueryable<CarDto> ProjectToDto(this IQueryable<Car> q);
+    // highlight-end
+}
+```
+
+  </TabItem>
+  <TabItem value="usage" label="Usage">
+
+```csharp
+var dtos = await DbContext.Cars
+    .Where(...)
+    // highlight-start
+    .ProjectToDto()
+    // highlight-end
+    .ToListAsync();
+```
+
+  </TabItem>
+</Tabs>
+
+This is useful in combination with Entity Framework and other ORM solutions which expose `IQueryable<T>`.
+Only fields present in the target class will be retrieved from the database.
+
+:::info
+
+Since queryable projection mappings use `System.Linq.Expressions.Expression<T>` under the hood,
+such mappings have several limitations:
+
+- Object factories are not applied
+- Constructors with unmatched optional parameters are ignored
+- `ThrowOnPropertyMappingNullMismatch` is ignored
+- `AllowNullPropertyAssignment` is ignored
+- Enum mappings do not support the `ByName` strategy
+- Reference handling is not supported
+- Nullable reference types are disabled
+- Deep cloning is not applied
+  :::
+
+## Property configurations
+
+To configure property mappings add partial mapping method definitions with attributes as needed.
+Set these methods to private to hide them from callers.
+
+```csharp
+[DomainMapper]
+public static partial class CarMapper
+{
+    // highlight-start
+    public static partial IQueryable<CarDto> ProjectToDto(this IQueryable<Car> q);
+    // highlight-end
+
+    // highlight-start
+    [MapProperty(nameof(Car.Manufacturer), nameof(CarDto.Producer)]
+    // highlight-end
+    private static partial CarDto Map(Car car);
+}
+```
+
+## User-implemented mapping methods
+
+DomainMap tries to inline user-implemented mapping methods.
+For this to work, user-implemented mapping methods need to satisfy certain limitations:
+
+- Only expression-bodied methods or methods that consist of a single local variable declaration expression can be inlined.
+- The body needs to follow the [expression tree limitations](https://learn.microsoft.com/en-us/dotnet/csharp/advanced-topics/expression-trees/#limitations).
+- Nested MethodGroups cannot be inlined.
+
+```csharp
+[DomainMapper]
+public static partial class CarMapper
+{
+    public static partial IQueryable<CarDto> ProjectToDto(this IQueryable<Car> q);
+
+    // highlight-start
+    private static string MapCarBrandName(CarBrand brand)
+      => brand.Name;
+    // highlight-end
+}
+```
+
+If DomainMap is unable to inline a user-implemented method, `RMG068` is reported.
+Non-inlined method invocations can lead to more data being loaded than necessary.
+
+Ordering and aggregating collections can also be implemented with user-implemented mapping methods:
+
+```csharp
+[DomainMapper]
+public static partial class CarMapper
+{
+    public static partial IQueryable<CarDto> ProjectToDto(this IQueryable<Car> q);
+
+    private static partial CarModelDto MapCarModel(CarModel model);
+
+    // highlight-start
+    private static ICollection<CarModelDto> MapOrderedCarBrandName(ICollection<CarModel> models)
+      // note: do not use the method group '.Select(MapCarModel)', as that cannot be inlined
+      => models.OrderBy(x => x.Name).Select(x => MapCarModel(x)).ToList();
+    // highlight-end
+  }
+```
+
+It is important that the types in the user-implemented mapping method match the types of the objects to be mapped exactly.
+Otherwise, DomainMap cannot resolve the user-implemented mapping methods.
+
+## Additional parameters
+
+Queryable projection methods can have [additional parameters](./additional-mapping-parameters.mdx).
+The parameters become captured variables in the generated projection lambda expression:
+
+<Tabs>
+  <TabItem value="definition" label="Mapper definition">
+
+```csharp
+[DomainMapper]
+public static partial class CarMapper
+{
+    // highlight-start
+    public static partial IQueryable<CarDto> ProjectToDto(this IQueryable<Car> q, int currentUserId);
+    // highlight-end
+}
+```
+
+  </TabItem>
+  <TabItem value="generated" label="Generated code">
+
+```csharp
+public static partial IQueryable<CarDto> ProjectToDto(this IQueryable<Car> q, int currentUserId)
+{
+    return System.Linq.Queryable.Select(
+        q,
+        x => new CarDto()
+        {
+            Brand = x.Brand,
+            // highlight-start
+            CurrentUserId = currentUserId, // captured from outer scope
+            // highlight-end
+        });
+}
+```
+
+  </TabItem>
+</Tabs>
+
+User-implemented mapping methods with additional parameters are inlined into the projection expression.
+The same inlining rules and limitations apply as for
+[regular user-implemented mapping methods](#user-implemented-mapping-methods).
+
+### Property configurations with additional parameters
+
+When a projection has additional parameters and you want to apply [property configurations](#property-configurations),
+the element mapping method must have the **same additional parameters**.
+A projection with additional parameters will only pick up configurations from an element mapping
+whose additional parameters match by name.
+
+```csharp
+[DomainMapper]
+public static partial class CarMapper
+{
+    // highlight-start
+    public static partial IQueryable<CarDto> ProjectToDto(this IQueryable<Car> q, int currentUserId);
+    // highlight-end
+
+    // highlight-start
+    // This element mapping is used for configuration because its additional parameter matches.
+    [MapProperty(nameof(Car.Manufacturer), nameof(CarDto.Producer))]
+    [MapPropertyFromSource(nameof(CarDto.IsLiked), Use = nameof(GetIsLiked))]
+    // highlight-end
+    private static partial CarDto Map(Car car, int currentUserId);
+
+    private static bool GetIsLiked(Car car, int currentUserId)
+        => car.Likes.Any(l => l.UserId == currentUserId);
+}
+```
+
+## Expression mappings
+
+In addition to `IQueryable<T>` projections, DomainMap also supports generating `Expression<Func<TSource, TTarget>>` directly.
+This is useful when you need the expression tree itself, for example to compose expressions manually or pass to APIs that accept expressions.
+
+<Tabs>
+  <TabItem value="definition" label="Mapper definition">
+
+```csharp
+[DomainMapper]
+public static partial class CarMapper
+{
+    // highlight-start
+    public static partial Expression<Func<Car, CarDto>> ProjectToDto();
+    // highlight-end
+}
+```
+
+  </TabItem>
+  <TabItem value="usage" label="Usage">
+
+```csharp
+// Get the expression tree
+var expression = CarMapper.ProjectToDto();
+
+// Use with EF Core
+var dtos = await DbContext.Cars
+    .Where(...)
+    // highlight-start
+    .Select(expression)
+    // highlight-end
+    .ToListAsync();
+```
+
+  </TabItem>
+</Tabs>
+
+Expression mappings use the same expression tree building logic as `IQueryable<T>` projections,
+so they share the same limitations and support the same features including property configurations and user-implemented mapping methods.
+
+### Property configurations
+
+Similar to `IQueryable<T>` projections, you can configure property mappings using partial methods:
+
+```csharp
+[DomainMapper]
+public static partial class CarMapper
+{
+    // highlight-start
+    public static partial Expression<Func<Car, CarDto>> ProjectToDto();
+    // highlight-end
+
+    // highlight-start
+    [MapProperty(nameof(Car.Manufacturer), nameof(CarDto.Producer))]
+    // highlight-end
+    private static partial CarDto Map(Car car);
+}
+```

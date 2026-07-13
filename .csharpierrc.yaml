@@ -1,0 +1,12 @@
+printWidth: 140
+useTabs: false
+tabWidth: 4
+preprocessorSymbolSets:
+  - ""
+  - "DEBUG"
+  - "DEBUG_SOURCE_GENERATOR"
+  - "NETSTANDARD2_0"
+  - "NET8_0_OR_GREATER"
+  - "NET9_0_OR_GREATER"
+  - "NET10_0_OR_GREATER"
+  - "ROSLYN5_0_OR_GREATER"

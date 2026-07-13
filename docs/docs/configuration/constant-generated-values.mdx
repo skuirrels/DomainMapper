@@ -1,0 +1,90 @@
+---
+sidebar_position: 4
+description: Map constant and generated values
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Constant and generated values
+
+## Constant values
+
+To map a constant value to a member or a constructor parameter `MapValue` can be used.
+Make sure the value exactly matches the target type.
+
+<!-- prettier-ignore-start -->
+<!-- prettier formatting breaks the code block -->
+<Tabs>
+  <TabItem value="declaration" label="Declaration" default>
+      ```csharp
+      [MapValue(nameof(CarDto.SourceSystem), "C1")]
+      public partial CarDto Map(Car car);
+      ```
+  </TabItem>
+  <TabItem value="generated" label="Generated code" default>
+      ```csharp
+      target.SourceSystem = "C1";
+      ```
+  </TabItem>
+</Tabs>
+<!-- prettier-ignore-end -->
+
+## Method generated values
+
+To map a method generated value to a member or a constructor parameter `MapValue` can be used.
+Make sure the return type exactly matches the target type.
+
+<Tabs>
+    <TabItem value="declaration" label="Declaration" default>
+        ```csharp
+        [MapValue(nameof(CarDto.SourceSystem), Use = nameof(GetSourceSystem))]
+        public partial CarDto Map(Car car);
+
+        string GetSourceSystem() => "C1";
+        ```
+    </TabItem>
+    <TabItem value="generated" label="Generated code" default>
+        ```csharp
+        target.SourceSystem = GetSourceSystem();
+        ```
+    </TabItem>
+
+</Tabs>
+
+This also works for constructor parameters.
+
+### Using additional mapping parameters
+
+When the mapping method has [additional parameters](./additional-mapping-parameters.mdx),
+they can be passed to `MapValue(Use = ...)` methods.
+The method's parameters are matched by name from the mapping's additional parameters:
+
+<Tabs>
+    <TabItem value="declaration" label="Declaration" default>
+        ```csharp
+        [MapValue(nameof(CarDto.FormattedDate), Use = nameof(FormatDate))]
+        public partial CarDto Map(Car car, string dateFormat);
+
+        string FormatDate(string dateFormat) => DateTime.Now.ToString(dateFormat);
+        ```
+    </TabItem>
+    <TabItem value="generated" label="Generated code" default>
+        ```csharp
+        target.FormattedDate = FormatDate(dateFormat);
+        ```
+    </TabItem>
+
+</Tabs>
+
+### Named mapping
+
+The name of the value generator can be overridden by the `NamedMapping` attribute:
+
+```csharp
+[MapValue(nameof(CarDto.SourceSystem), Use = "CustomGetSourceSystem")]
+public partial CarDto Map(Car car);
+
+[NamedMapping("CustomGetSourceSystem")]
+string GetSourceSystem() => "C1";
+```

@@ -1,0 +1,25 @@
+<Project>
+  <!-- import parent: https://docs.microsoft.com/en-us/visualstudio/msbuild/customize-your-build -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <!--
+    we use a higher version than supported by the target framework to have nullable types and other nice features
+    (a lot of features get polyfilled by Meziantou.Polyfill)
+    however we need to be careful with the available features!
+    -->
+    <LangVersion>preview</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Meziantou.Analyzer" Version="3.0.98">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Meziantou.Polyfill" Version="1.0.140">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

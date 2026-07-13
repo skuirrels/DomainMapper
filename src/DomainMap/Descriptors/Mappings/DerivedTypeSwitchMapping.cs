@@ -1,0 +1,49 @@
+using DomainMap.Emit.Syntax;
+using DomainMap.Helpers;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static DomainMap.Emit.Syntax.SyntaxFactoryHelper;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
+
+namespace DomainMap.Descriptors.Mappings;
+
+/// <summary>
+/// A derived type mapping maps one base type or interface to another
+/// by implementing a type switch over known types and performs the provided mapping for each type.
+/// </summary>
+public class DerivedTypeSwitchMapping(ITypeSymbol sourceType, ITypeSymbol targetType, IReadOnlyCollection<INewInstanceMapping> typeMappings)
+    : NewInstanceMethodMapping(sourceType, targetType)
+{
+    private const string GetTypeMethodName = nameof(GetType);
+
+    public override IEnumerable<StatementSyntax> BuildBody(TypeMappingBuildContext ctx)
+    {
+        // _ => throw new ArgumentException(msg, nameof(ctx.Source)),
+        var sourceTypeExpr = ctx.SyntaxFactory.Invocation(MemberAccess(ctx.Source, GetTypeMethodName));
+        var fallbackArm = SwitchArm(
+            DiscardPattern(),
+            ThrowArgumentExpression(
+                InterpolatedString(
+                    $"Cannot map {sourceTypeExpr} to {TargetType.ToDisplayString()} as there is no known derived type mapping"
+                ),
+                ctx.Source
+            )
+        );
+
+        // source switch { A x => MapToADto(x), B x => MapToBDto(x) }
+        var (typeArmContext, typeArmVariableName) = ctx.WithNewSource();
+        var arms = typeMappings.Select(x => BuildSwitchArm(typeArmVariableName, x.SourceType, x.Build(typeArmContext))).Append(fallbackArm);
+        var switchExpression = ctx.SyntaxFactory.Switch(ctx.Source, arms);
+        return [ctx.SyntaxFactory.Return(switchExpression)];
+    }
+
+    private SwitchExpressionArmSyntax BuildSwitchArm(string typeArmVariableName, ITypeSymbol type, ExpressionSyntax mapping)
+    {
+        // A x => MapToADto(x),
+        var declaration = DeclarationPattern(
+            FullyQualifiedIdentifier(type.NonNullable()).AddTrailingSpace(),
+            SingleVariableDesignation(Identifier(typeArmVariableName))
+        );
+        return SwitchArm(declaration, mapping);
+    }
+}

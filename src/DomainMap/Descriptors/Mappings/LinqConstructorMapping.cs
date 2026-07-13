@@ -1,0 +1,45 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static DomainMap.Emit.Syntax.SyntaxFactoryHelper;
+
+namespace DomainMap.Descriptors.Mappings;
+
+/// <summary>
+/// Represents an enumerable mapping where the target type accepts IEnumerable as a single argument.
+/// </summary>
+public class LinqConstructorMapping(
+    ITypeSymbol sourceType,
+    ITypeSymbol targetType,
+    INewInstanceMapping elementMapping,
+    string? selectMethod,
+    bool reverse = false
+) : NewInstanceMapping(sourceType, targetType)
+{
+    private const string EnumerableType = "global::System.Linq.Enumerable";
+    private const string ReverseMethodName = "Reverse";
+
+    public override ExpressionSyntax Build(TypeMappingBuildContext ctx)
+    {
+        ExpressionSyntax mappedSource;
+
+        // Select / Map if needed
+        if (selectMethod != null)
+        {
+            var (lambdaCtx, lambdaSourceName) = ctx.WithNewScopedSource();
+            var sourceMapExpression = elementMapping.Build(lambdaCtx);
+            var convertLambda = Lambda(lambdaSourceName, sourceMapExpression);
+            mappedSource = ctx.SyntaxFactory.Invocation(selectMethod, ctx.Source, convertLambda);
+        }
+        else
+        {
+            mappedSource = elementMapping.Build(ctx);
+        }
+
+        if (reverse)
+        {
+            mappedSource = ctx.SyntaxFactory.Invocation(MemberAccess(EnumerableType, ReverseMethodName), mappedSource);
+        }
+
+        return ctx.SyntaxFactory.CreateInstance(TargetType, mappedSource);
+    }
+}

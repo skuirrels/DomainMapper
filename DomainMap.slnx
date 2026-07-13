@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/DomainMap.Benchmarks/DomainMap.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/DomainMap.Sample/DomainMap.Sample.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/DomainMap.Abstractions/DomainMap.Abstractions.csproj" />
+    <Project Path="src/DomainMap/DomainMap.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/DomainMap.Abstractions.Tests/DomainMap.Abstractions.Tests.csproj" />
+    <Project Path="test/DomainMap.IntegrationTests/DomainMap.IntegrationTests.csproj" />
+    <Project Path="test/DomainMap.Tests/DomainMap.Tests.csproj" />
+  </Folder>
+</Solution>

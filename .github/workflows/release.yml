@@ -1,0 +1,75 @@
+name: release
+
+on:
+  release:
+    types:
+      - published
+
+# required secrets: NUGET_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
+  NUGET_SOURCE: 'https://api.nuget.org/v3/index.json'
+
+concurrency:
+  group: ${{ github.workflow }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.release.prerelease && 'next' || 'stable' }}
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.extract-version.outputs.RELEASE_VERSION }}
+    steps:
+      - name: checkout git
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: extract-version
+        name: extract version
+        run: echo "RELEASE_VERSION=${RELEASE_NAME#v}" >> "$GITHUB_OUTPUT"
+        env:
+          RELEASE_NAME: ${{ github.event.release.name }}
+      - name: extract release notes
+        id: extract-release-notes
+        run: |
+          {
+            echo 'RELEASE_NOTES<<EOF';
+            gh release view '${{ github.event.release.name }}' --json body --jq .body;
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: convert release notes markdown to text
+        id: release-notes-text
+        uses: koistya/strip-markdown@v1
+        with:
+          content: ${{ steps.extract-release-notes.outputs.RELEASE_NOTES }}
+      - name: setup dotnet
+        uses: actions/setup-dotnet@v5
+      - name: install dependencies
+        run: sudo apt update && sudo apt -y install zipmerge # zipmerge is used to merge the multi target nupkg
+      - name: build release
+        run: ./build/package.sh
+        env:
+          DOMAINMAP_ENVIRONMENT: ${{ github.event.release.prerelease && 'next' || 'stable' }}
+          RELEASE_NOTES: ${{ steps.release-notes-text.outputs.content }}
+          RELEASE_VERSION: ${{ steps.extract-version.outputs.RELEASE_VERSION }}
+      - name: publish nuget
+        run: dotnet nuget push './artifacts/*.nupkg' --source "$NUGET_SOURCE" --api-key '${{ secrets.NUGET_API_TOKEN }}'
+      - name: add release assets
+        run: gh release upload "${{ github.event.release.name }}" artifacts/*.nupkg
+        env:
+          GH_TOKEN: ${{ github.token }}
+  docs:
+    uses: ./.github/workflows/docs.yml
+    needs: release
+    with:
+      deploy: true
+      environment: ${{ github.event.release.prerelease && 'next' || 'stable' }}
+      version: ${{ needs.release.outputs.version }}
+    secrets:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

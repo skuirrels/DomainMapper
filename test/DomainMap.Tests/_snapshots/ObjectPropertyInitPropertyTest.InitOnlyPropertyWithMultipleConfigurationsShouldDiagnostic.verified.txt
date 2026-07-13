@@ -1,0 +1,43 @@
+﻿{
+  Diagnostics: [
+    {
+      Location: /*
+{
+    [MapProperty("StringValue2", "StringValue")] [MapProperty("StringValue3", "StringValue")] private partial B Map(A source);
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+}
+*/
+ : (11,4)-(11,126),
+      Message: Multiple mappings are configured for the same target member B.StringValue,
+      Severity: Error,
+      Descriptor: {
+        Id: RMG074,
+        Title: Multiple mappings are configured for the same target member,
+        MessageFormat: Multiple mappings are configured for the same target member {0}.{1},
+        Category: Mapper,
+        DefaultSeverity: Error,
+        IsEnabledByDefault: true
+      }
+    },
+    {
+      Location: /*
+{
+    [MapProperty("StringValue2", "StringValue")] [MapProperty("StringValue3", "StringValue")] private partial B Map(A source);
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+}
+*/
+ : (11,4)-(11,126),
+      Message: The member StringValue3 on the mapping source type A is not mapped to any member on the mapping target type B,
+      Severity: Warning,
+      WarningLevel: 1,
+      Descriptor: {
+        Id: RMG020,
+        Title: Source member is not mapped to any target member,
+        MessageFormat: The member {0} on the mapping source type {1} is not mapped to any member on the mapping target type {2},
+        Category: Mapper,
+        DefaultSeverity: Warning,
+        IsEnabledByDefault: true
+      }
+    }
+  ]
+}

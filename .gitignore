@@ -1,0 +1,21 @@
+# artifacts / build outputs
+artifacts/
+bin/
+obj/
+
+.vs/
+.idea/
+
+# verify received files
+*.received.*
+
+# dot user settings
+*.DotSettings.user
+
+# test logs
+**/TestResults/**/*.xml
+
+# code coverage results
+*.coverage
+*.coveragexml
+coverage.cobertura.xml

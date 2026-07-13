@@ -1,0 +1,13 @@
+DomainMap
+Copyright 2026 DomainMap contributors
+
+This product includes software derived from Mapperly:
+https://github.com/riok/mapperly
+
+Mapperly is Copyright its contributors, including Lars Toenz and Manuel
+Allenspach, and is licensed under the Apache License, Version 2.0.
+
+DomainMap is an independent derivative work. The namespaces, package names,
+public mapper marker, build properties, tests, documentation, benchmarks, and
+DDD-oriented factory API have been modified. DomainMap is not affiliated with
+or endorsed by the Mapperly maintainers.

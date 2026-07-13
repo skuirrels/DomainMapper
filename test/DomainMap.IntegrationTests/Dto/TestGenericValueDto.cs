@@ -1,0 +1,7 @@
+namespace DomainMap.IntegrationTests.Dto
+{
+    public class TestGenericValueDto : ITestGenericValueDto<float>
+    {
+        public float Value { get; set; }
+    }
+}

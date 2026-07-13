@@ -1,0 +1,179 @@
+name: test
+
+on:
+  workflow_call:
+  pull_request:
+    branches:
+      - '**'
+  push:
+    branches:
+      - main
+  # run on the first day of each month
+  # since the coverage artifacts will expire after 35d
+  schedule:
+    - cron: '0 0 1 * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
+  DiffEngine_Disabled: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+      - run: dotnet build /p:TreatWarningsAsErrors=true
+      - run: dotnet test -m:1 --no-build --logger 'junit' /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:ExcludeByFile='**/*.g.cs'
+      - uses: test-summary/action@v2
+        if: always()
+        with:
+          paths: 'test/**/TestResults/**/*.xml'
+      - uses: danielpalme/ReportGenerator-GitHub-Action@v5
+        if: always()
+        with:
+          reports: 'test/**/*cobertura.xml'
+          reporttypes: 'Cobertura'
+          targetdir: '${{ github.workspace }}'
+      - uses: clearlyip/code-coverage-report-action@v7
+        id: code_coverage_report_action
+        # dont run for dependabot
+        if: ${{ always() && github.actor != 'dependabot[bot]'}}
+        with:
+          filename: 'Cobertura.xml'
+          overall_coverage_fail_threshold: 75
+          retention_days: 35
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt update && sudo apt -y install zipmerge # zipmerge is used to merge the multi target nupkg
+      - uses: actions/setup-dotnet@v5
+      - run: dotnet tool restore
+      - run: RELEASE_VERSION="0.0.1-dev.$GITHUB_RUN_ID" ./build/package.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: domainmap-nupkg
+          path: artifacts/*.nupkg
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: verify-test-results-package
+          path: '**/*.received.*'
+          retention-days: 3
+  validate-package:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+      - run: dotnet tool restore
+      - uses: actions/download-artifact@v8
+        with:
+          name: domainmap-nupkg
+          path: artifacts
+      - run: dotnet meziantou.validate-nuget-package --github-token "$GITHUB_TOKEN" ./artifacts/*.nupkg
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+  integration-test:
+    needs: package
+    runs-on: ubuntu-latest
+    # use an alpine container to ensure only the dotnet version we want to test is installed,
+    # ubuntu-latest already contains several dotnet versions...
+    container:
+      image: alpine:3.23
+    strategy:
+      fail-fast: false
+      matrix:
+        dotnet:
+          - '10.0'
+          - '9.0'
+          - '8.0'
+    steps:
+      - uses: actions/checkout@v7
+      # install required dotnet dependencies
+      # https://learn.microsoft.com/en-us/dotnet/core/install/linux-alpine#dependencies
+      - run: apk add --no-cache bash icu-libs krb5-libs libgcc libintl libssl3 libstdc++ zlib
+      # delete global.json since we want to use custom versions here
+      - run: rm global.json
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+      - run: dotnet --list-sdks
+      - uses: actions/download-artifact@v8
+        with:
+          name: domainmap-nupkg
+          path: artifacts
+
+      # use nupkg artifact for integration tests instead of project references
+      - run: dotnet nuget add source "$(pwd)/artifacts"
+      - run: >-
+          dotnet build
+          -f net${{ matrix.dotnet }}
+          -p:DomainMapIntegrationTestsTargetFramework=net${{ matrix.dotnet }}
+          -p:DomainMapNugetPackageVersion="0.0.1-dev.$GITHUB_RUN_ID"
+        working-directory: ./test/DomainMap.IntegrationTests
+      - run: dotnet test --no-build -f net${{ matrix.dotnet }}
+        working-directory: ./test/DomainMap.IntegrationTests
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: verify-test-results-net${{ matrix.dotnet }}
+          path: '**/*.received.*'
+          retention-days: 3
+  integration-test-net-framework:
+    needs: package
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      # delete global.json since we want to use custom versions here
+      - run: rm global.json
+      - uses: actions/download-artifact@v8
+        with:
+          name: domainmap-nupkg
+          path: artifacts
+
+      # use nupkg artifact for integration tests instead of project references
+      - run: dotnet nuget add source "$(Get-Location)/artifacts"
+      - run: >-
+          dotnet build
+          -f net48
+          -p:DomainMapIntegrationTestsTargetFramework=net48
+          -p:DomainMapNugetPackageVersion=0.0.1-dev.$env:GITHUB_RUN_ID
+        working-directory: ./test/DomainMap.IntegrationTests
+      - run: dotnet test --no-build -f net48
+        working-directory: ./test/DomainMap.IntegrationTests
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: verify-test-results-net-framework
+          path: '**/*.received.*'
+          retention-days: 3
+  sample:
+    runs-on: ubuntu-latest
+    needs: package
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+      - run: dotnet run --project ./samples/DomainMap.Sample
+
+      # run the same again with the real nuget without runtime assets
+      - uses: actions/download-artifact@v8
+        with:
+          name: domainmap-nupkg
+          path: artifacts
+
+      # use nupkg artifact instead of project references
+      - run: dotnet nuget add source "$(pwd)/artifacts"
+      - run: dotnet clean
+      - run: dotnet build -p:DomainMapNugetPackageVersion="0.0.1-dev.$GITHUB_RUN_ID"
+        working-directory: ./samples/DomainMap.Sample
+      - run: dotnet run --no-build
+        working-directory: ./samples/DomainMap.Sample

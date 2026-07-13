@@ -1,0 +1,27 @@
+<Project>
+  <PropertyGroup>
+    <DefineConstants Condition="'$(DomainMapAbstractionsScope)' == 'runtime'"
+      >$(DefineConstants);DOMAINMAP_ABSTRACTIONS_SCOPE_RUNTIME</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="DomainMapPropertyNameMappingStrategy" />
+    <CompilerVisibleProperty Include="DomainMapEnumMappingStrategy" />
+    <CompilerVisibleProperty Include="DomainMapEnumNamingStrategy" />
+    <CompilerVisibleProperty Include="DomainMapEnumMappingIgnoreCase" />
+    <CompilerVisibleProperty Include="DomainMapThrowOnMappingNullMismatch" />
+    <CompilerVisibleProperty Include="DomainMapThrowOnPropertyMappingNullMismatch" />
+    <CompilerVisibleProperty Include="DomainMapAllowNullPropertyAssignment" />
+    <CompilerVisibleProperty Include="DomainMapUseDeepCloning" />
+    <CompilerVisibleProperty Include="DomainMapStackCloningStrategy" />
+    <CompilerVisibleProperty Include="DomainMapEnabledConversions" />
+    <CompilerVisibleProperty Include="DomainMapUseReferenceHandling" />
+    <CompilerVisibleProperty Include="DomainMapIgnoreObsoleteMembersStrategy" />
+    <CompilerVisibleProperty Include="DomainMapRequiredMappingStrategy" />
+    <CompilerVisibleProperty Include="DomainMapRequiredEnumMappingStrategy" />
+    <CompilerVisibleProperty Include="DomainMapIncludedMembers" />
+    <CompilerVisibleProperty Include="DomainMapIncludedConstructors" />
+    <CompilerVisibleProperty Include="DomainMapPreferParameterlessConstructors" />
+    <CompilerVisibleProperty Include="DomainMapAutoUserMappings" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,92 @@
+using DomainMap.Helpers;
+using DomainMap.Symbols;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static DomainMap.Emit.Syntax.SyntaxFactoryHelper;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
+
+namespace DomainMap.Descriptors.Mappings.UserMappings;
+
+/// <summary>
+/// Represents a mapping method on the mapper which is implemented by the user.
+/// </summary>
+public class UserImplementedMethodMapping(
+    string? receiver,
+    IMethodSymbol method,
+    bool? isDefault,
+    MethodParameter sourceParameter,
+    ITypeSymbol sourceType,
+    ITypeSymbol targetType,
+    MethodParameter? referenceHandlerParameter,
+    bool isExternal,
+    UserImplementedMethodMapping.TargetNullability targetNullability
+) : NewInstanceMapping(sourceType, targetType), INewInstanceUserMapping, IParameterizedMapping
+{
+    public enum TargetNullability
+    {
+        NeverNull,
+        NotNullIfSourceNotNull,
+        Nullable,
+    }
+
+    public IMethodSymbol Method { get; } = method;
+
+    public bool? Default { get; } = isDefault;
+
+    public bool IsExternal { get; } = isExternal;
+
+    public IReadOnlyCollection<MethodParameter> AdditionalSourceParameters { get; } =
+        method
+            .Parameters.Where(p =>
+                p.Ordinal != sourceParameter.Ordinal
+                && (referenceHandlerParameter is null || p.Ordinal != referenceHandlerParameter.Value.Ordinal)
+            )
+            .Select(p => new MethodParameter(p, p.Type))
+            .ToList();
+
+    public override IEnumerable<TypeMappingKey> BuildAdditionalMappingKeys(TypeMappingConfiguration config)
+    {
+        var keys = base.BuildAdditionalMappingKeys(config);
+        switch (targetNullability)
+        {
+            case TargetNullability.NeverNull when TargetType.IsNullable():
+                keys = keys.Append(new TypeMappingKey(SourceType, TargetType.NonNullable()));
+                goto case TargetNullability.NotNullIfSourceNotNull;
+            case TargetNullability.NotNullIfSourceNotNull:
+                keys = keys.Append(new TypeMappingKey(SourceType.NonNullable(), TargetType.NonNullable()));
+                break;
+        }
+
+        return keys;
+    }
+
+    public override ExpressionSyntax Build(TypeMappingBuildContext ctx)
+    {
+        var methodName = BuildMethodName();
+
+        // if the user implemented method is on an interface,
+        // we explicitly cast to be able to use the default interface implementation or explicit implementations
+        if (Method.ReceiverType?.TypeKind != TypeKind.Interface)
+        {
+            ExpressionSyntax methodExpr =
+                receiver == null
+                    ? methodName
+                    : MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, IdentifierName(receiver), methodName);
+            return ctx.SyntaxFactory.Invocation(methodExpr, ctx.BuildArguments(Method, sourceParameter, referenceHandlerParameter));
+        }
+
+        var castedReceiver = CastExpression(
+            FullyQualifiedIdentifier(Method.ReceiverType!),
+            receiver == null ? ThisExpression() : IdentifierName(receiver)
+        );
+        var castedMethodExpr = MemberAccessExpression(
+            SyntaxKind.SimpleMemberAccessExpression,
+            ParenthesizedExpression(castedReceiver),
+            methodName
+        );
+        return ctx.SyntaxFactory.Invocation(castedMethodExpr, ctx.BuildArguments(Method, sourceParameter, referenceHandlerParameter));
+    }
+
+    protected virtual SimpleNameSyntax BuildMethodName() => IdentifierName(Method.Name);
+}

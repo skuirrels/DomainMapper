@@ -1,0 +1,89 @@
+using System.Diagnostics;
+using DomainMap.Descriptors;
+using DomainMap.Descriptors.UnsafeAccess;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static DomainMap.Emit.Syntax.SyntaxFactoryHelper;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
+
+namespace DomainMap.Symbols.Members;
+
+[DebuggerDisplay("{Name}")]
+public class PropertyMember(IPropertySymbol symbol, SymbolAccessor symbolAccessor)
+    : SymbolMappableMember<IPropertySymbol>(symbol),
+        IMappableMember,
+        IMemberSetter,
+        IMemberGetter
+{
+    public ITypeSymbol Type { get; } = symbolAccessor.UpgradeNullable(symbol.Type);
+
+    public INamedTypeSymbol? ContainingType { get; } = symbol.ContainingType;
+
+    public bool IsReadNullable => symbolAccessor.IsReadNullable(Symbol);
+
+    public bool IsWriteNullable => symbolAccessor.IsWriteNullable(Symbol);
+
+    public bool CanGet => !Symbol.IsWriteOnly && (Symbol.GetMethod == null || symbolAccessor.IsMemberAccessible(Symbol.GetMethod));
+
+    public bool CanGetDirectly =>
+        Symbol is { IsWriteOnly: false, GetMethod: not null } && symbolAccessor.IsDirectlyAccessible(Symbol.GetMethod);
+
+    public bool CanSet => Symbol is { IsReadOnly: false, SetMethod: not null } && symbolAccessor.IsMemberAccessible(Symbol.SetMethod);
+
+    public bool CanSetDirectly =>
+        Symbol is { IsReadOnly: false, SetMethod: not null } && symbolAccessor.IsDirectlyAccessible(Symbol.SetMethod);
+
+    public bool IsInitOnly => Symbol.SetMethod?.IsInitOnly == true;
+
+    public bool IsRequired => Symbol.IsRequired;
+
+    public bool IsObsolete => symbolAccessor.HasAttribute<ObsoleteAttribute>(Symbol);
+
+    public bool SupportsCoalesceAssignment => CanSetDirectly;
+
+    public bool IsIgnored(MappingBuilderContext ctx) => MapperIgnoreHelper.CheckIgnored(Symbol, Name, ctx);
+
+    public IMemberGetter BuildGetter(UnsafeAccessorContext ctx)
+    {
+        if (CanGetDirectly)
+            return this;
+
+        if (!CanGet)
+            throw new InvalidOperationException($"Cannot build a getter for a property with {nameof(CanGet)} = false");
+
+        return ctx.GetOrBuildPropertyGetter(this);
+    }
+
+    public IMemberSetter BuildSetter(UnsafeAccessorContext ctx)
+    {
+        if (CanSetDirectly)
+            return this;
+
+        if (!CanSet)
+            throw new InvalidOperationException($"Cannot build a setter for a property with {nameof(CanSet)} = false");
+
+        return ctx.GetOrBuildPropertySetter(this);
+    }
+
+    public ExpressionSyntax BuildAssignment(
+        ExpressionSyntax? baseAccess,
+        ExpressionSyntax valueToAssign,
+        INamedTypeSymbol? containingType = null,
+        bool coalesceAssignment = false
+    )
+    {
+        Debug.Assert(CanSetDirectly);
+        ExpressionSyntax targetMember = baseAccess == null ? IdentifierName(Name) : MemberAccess(baseAccess, Name);
+
+        return Assignment(targetMember, valueToAssign, coalesceAssignment);
+    }
+
+    public ExpressionSyntax BuildAccess(ExpressionSyntax? baseAccess, INamedTypeSymbol? containingType = null, bool nullConditional = false)
+    {
+        Debug.Assert(CanGetDirectly);
+        if (baseAccess == null)
+            return IdentifierName(Name);
+
+        return nullConditional ? ConditionalAccess(baseAccess, Name) : MemberAccess(baseAccess, Name);
+    }
+}

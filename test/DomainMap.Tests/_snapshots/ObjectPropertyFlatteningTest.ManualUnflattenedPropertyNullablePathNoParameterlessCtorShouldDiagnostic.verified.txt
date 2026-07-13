@@ -1,0 +1,23 @@
+﻿{
+  Diagnostics: [
+    {
+      Location: /*
+{
+    [MapProperty("MyValueId", "Value.Id")] private partial B Map(A source);
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+}
+*/
+ : (11,4)-(11,75),
+      Message: C has no accessible parameterless constructor,
+      Severity: Error,
+      Descriptor: {
+        Id: RMG002,
+        Title: No accessible parameterless constructor found,
+        MessageFormat: {0} has no accessible parameterless constructor,
+        Category: Mapper,
+        DefaultSeverity: Error,
+        IsEnabledByDefault: true
+      }
+    }
+  ]
+}

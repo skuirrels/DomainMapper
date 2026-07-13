@@ -1,0 +1,35 @@
+using System.Diagnostics;
+
+namespace DomainMap.Abstractions;
+
+/// <summary>
+/// Ignores a source property from the mapping.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+[Conditional("DOMAINMAP_ABSTRACTIONS_SCOPE_RUNTIME")]
+public sealed class MapperIgnoreSourceAttribute : Attribute
+{
+    /// <summary>
+    /// Ignores the specified source property from the mapping.
+    /// </summary>
+    /// <param name="source">The name of the source property to ignore. The use of `nameof()` is encouraged.</param>
+    public MapperIgnoreSourceAttribute(string source)
+    {
+        Source = source;
+    }
+
+    /// <summary>
+    /// Gets the source property name which should be ignored from the mapping.
+    /// </summary>
+    public string Source { get; }
+
+    /// <summary>
+    /// Gets or sets the justification for ignoring the source property.
+    /// This is only used for documentation purposes and does not have any effect on the mapping.
+    /// </summary>
+    /// <remarks>
+    /// You can enforce the presence of justifications by setting the diagnostic severity of <c>RMG096</c> in your
+    /// <c>.editorconfig</c> to any value other than <c>hidden</c>.
+    /// </remarks>
+    public string? Justification { get; set; }
+}

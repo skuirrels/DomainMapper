@@ -1,0 +1,23 @@
+﻿{
+  Diagnostics: [
+    {
+      Location: /*
+{
+    [MapNestedProperties("Value")] partial B Map(A source);
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+}
+*/
+ : (11,4)-(11,59),
+      Message: Specified nested member Value on source type A was not found,
+      Severity: Error,
+      Descriptor: {
+        Id: RMG070,
+        Title: Mapping nested member not found,
+        MessageFormat: Specified nested member {0} on source type {1} was not found,
+        Category: Mapper,
+        DefaultSeverity: Error,
+        IsEnabledByDefault: true
+      }
+    }
+  ]
+}
