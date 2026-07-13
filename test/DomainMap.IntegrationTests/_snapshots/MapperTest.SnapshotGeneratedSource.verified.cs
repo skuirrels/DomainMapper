@@ -897,11 +897,7 @@ namespace DomainMap.IntegrationTests.Mapper
                 nameof(global::DomainMap.IntegrationTests.Models.TestEnum.Value10) => global::DomainMap.IntegrationTests.Models.TestEnum.Value10,
                 nameof(global::DomainMap.IntegrationTests.Models.TestEnum.Value20) => global::DomainMap.IntegrationTests.Models.TestEnum.Value20,
                 nameof(global::DomainMap.IntegrationTests.Models.TestEnum.Value30) => global::DomainMap.IntegrationTests.Models.TestEnum.Value30,
-                _ => (global::DomainMap.IntegrationTests.Models.TestEnum)global::System.Enum.Parse(
-                typeof(global::DomainMap.IntegrationTests.Models.TestEnum),
-                source,
-                false
-            ),
+                _ => (global::DomainMap.IntegrationTests.Models.TestEnum)global::System.Enum.Parse(typeof(global::DomainMap.IntegrationTests.Models.TestEnum), source, false),
             };
         }
 
