@@ -6,7 +6,7 @@ description: How DomainMap versions are released and deployed to NuGet
 # Release process
 
 Every time a push to the main branch occurs,
-a GitHub actions workflow creates or updates
+a GitHub Actions workflow creates or updates
 the upcoming next and stable GitHub release drafts by using [release-drafter](https://github.com/release-drafter/release-drafter).
 release-drafter generates a changelog based on the PR titles and commit-messages.
 The upcoming version is determined by looking at the labels of each PR.
@@ -22,14 +22,14 @@ publish the GitHub draft release.
 The release notes can be modified before the publication as needed.
 
 :::note
-If the release notes are changed and another commit is pushed to `main'
+If the release notes are changed and another commit is pushed to `main`
 after the changes have been saved,
 the changes will be lost.
 :::
 
 When the release is published,
 GitHub will create a tag pointing to the latest commit of `main`.
-A GitHub action will export the release notes,
+A GitHub Action will export the release notes,
 strip the Markdown (unfortunately NuGet release notes don't support Markdown),
 build the DomainMap package,
 deploy it on NuGet

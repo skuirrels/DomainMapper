@@ -30,7 +30,7 @@ namespace DomainMap.IntegrationTests
 
     public sealed record PlaceOrder(Guid Id, string CustomerName, decimal Total);
 
-    public readonly record struct OrderId(Guid Value);
+    public sealed record OrderId(Guid Value);
 
     public sealed class Order
     {

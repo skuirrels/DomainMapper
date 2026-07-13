@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!-- Running every Roslyn-heavy generator test concurrently can exhaust the test host.
-         Use xUnit's bounded collection parallelism for a deterministic local and CI gate. -->
+        Use xUnit's bounded collection parallelism for a deterministic local and CI gate. -->
     <IncludeMeziantouXunitParallelTestFramework>false</IncludeMeziantouXunitParallelTestFramework>
   </PropertyGroup>
   <ItemGroup>

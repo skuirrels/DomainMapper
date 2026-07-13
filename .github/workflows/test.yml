@@ -29,7 +29,9 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v5
       - run: dotnet build /p:TreatWarningsAsErrors=true
-      - run: dotnet test -m:1 --no-build --logger 'junit' /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:ExcludeByFile='**/*.g.cs'
+      - run: >-
+          dotnet test -m:1 --no-build --logger 'junit' /p:CollectCoverage=true
+          /p:CoverletOutputFormat=cobertura /p:ExcludeByFile='**/*.g.cs'
       - uses: test-summary/action@v2
         if: always()
         with:
@@ -79,7 +81,10 @@ jobs:
         with:
           name: domainmap-nupkg
           path: artifacts
-      - run: dotnet meziantou.validate-nuget-package --github-token "$GITHUB_TOKEN" ./artifacts/*.nupkg
+      # Rule 52 anonymously probes repository and project URLs, which cannot succeed while the repository is private.
+      - run: >-
+          dotnet meziantou.validate-nuget-package --github-token "$GITHUB_TOKEN"
+          --excluded-rule-ids 52 ./artifacts/*.nupkg
         env:
           GITHUB_TOKEN: ${{ github.token }}
   integration-test:
