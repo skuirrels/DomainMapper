@@ -43,6 +43,7 @@ jobs:
   benchmark:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         BENCHMARK_NAME:
           - MappingBenchmarks
@@ -54,7 +55,7 @@ jobs:
       - uses: actions/setup-dotnet@v5
       - name: Run ${{ matrix.BENCHMARK_NAME }}
         working-directory: ${{ env.BENCHMARKS_PATH }}
-        run: dotnet run --exporters json --configuration Release --filter '*${{ matrix.BENCHMARK_NAME }}*'
+        run: dotnet run --exporters json --configuration Release --filter '*.${{ matrix.BENCHMARK_NAME }}.*'
       - name: Restore baseline results
         uses: actions/cache/restore@v5
         id: cache-baseline-results-restore
