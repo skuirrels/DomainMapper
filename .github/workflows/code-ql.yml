@@ -8,7 +8,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '45 11 * * 6'
+    - cron: "45 11 * * 6"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -37,3 +37,13 @@ jobs:
       - uses: actions/setup-dotnet@v5
       - run: dotnet build
       - uses: github/codeql-action/analyze@v4
+        with:
+          output: ${{ runner.temp }}/codeql-results
+          upload: ${{ github.event.repository.private && 'never' || 'always' }}
+          upload-database: ${{ !github.event.repository.private }}
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() && github.event.repository.private }}
+        with:
+          name: codeql-${{ matrix.language }}-sarif
+          path: ${{ runner.temp }}/codeql-results
+          retention-days: 14
