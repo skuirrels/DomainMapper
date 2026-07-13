@@ -14,6 +14,16 @@ using DomainMap.Abstractions;
 [DomainMapper]
 public static partial class OrdersMap
 {
+    [DomainFactory(Input = DomainFactoryInput.Source)]
+    private static OrderId ToOrderId(Guid value) => OrderId.Create(value);
+
+    [DomainFactory(Input = DomainFactoryInput.Source)]
+    private static CustomerName ToCustomerName(string value)
+        => CustomerName.Create(value);
+
+    [DomainFactory(Input = DomainFactoryInput.Source)]
+    private static Money ToMoney(decimal value) => Money.Gbp(value);
+
     [DomainFactory]
     private static Order Create(
         OrderId id,
@@ -21,11 +31,12 @@ public static partial class OrdersMap
         Money total)
         => Order.Place(id, customerName, total);
 
-    private static OrderId ToOrderId(Guid value) => new(value);
-    private static CustomerName ToCustomerName(string value) => CustomerName.Create(value);
-    private static Money ToMoney(decimal value) => Money.Gbp(value);
+    [DomainFactory]
+    private static Order Rename(Order current, CustomerName customerName)
+        => current.Rename(customerName);
 
     public static partial Order ToDomain(PlaceOrder command);
+    public static partial Order Rename(RenameOrder command, Order current);
     public static partial OrderView ToView(Order order);
 }
 ```
@@ -40,7 +51,7 @@ var target = Create(
 return target;
 ```
 
-`[DomainFactory]` is the DDD-focused difference: its parameters are bound from source members automatically. The factory body remains ordinary user code, so validation and invariants are never reimplemented by the generator.
+`[DomainFactory]` is the DDD-focused difference. `Input.Members` binds command members to a factory by name; `Input.Source` sends one complete value into a strongly typed ID or value-object factory. The factory is a required boundary: if DomainMap cannot satisfy it, compilation fails instead of silently choosing a public constructor or assigning properties.
 
 ## Design boundary
 
@@ -48,8 +59,10 @@ DomainMap owns data movement. Your domain owns behavior.
 
 - Use generated mappings for commands, integration contracts, persistence models, read models, and projections.
 - Use `[DomainFactory]` to enter an aggregate through a constructor or named factory.
-- Use small user mappings for strongly typed IDs and value objects.
-- Keep aggregate updates that require behavior as explicit domain method calls. DomainMap will not guess that `Status = Shipped` means `order.Ship()`.
+- Use `DomainFactoryInput.Source` for strongly typed IDs and value objects.
+- Pass the current aggregate as an additional mapping parameter when an immutable update delegates to domain behavior. DomainMap will not guess that `Status = Shipped` means `order.Ship()`.
+- Keep expected business failures explicit in your own result type; DomainMap does not introduce a runtime result abstraction.
+- Project persistence entities to read models. Domain factories are deliberately rejected inside `IQueryable` projections.
 
 ## Capability surface
 
@@ -66,7 +79,7 @@ The inherited engine covers:
 - `IQueryable` projection generation;
 - incremental generation and analyzer diagnostics.
 
-The suite retains Mapperly's broad conformance corpus and adds DomainMap-specific generator and runtime tests for factory binding, optional arguments, strongly typed IDs, null guards, generic factories, fallback selection, inheritance, and invariant failures.
+The suite retains Mapperly's broad conformance corpus and adds DomainMap-specific generator and runtime tests for required factory binding, strongly typed IDs, immutable aggregate updates, explicit failure results, projection rejection, and invariant failures.
 
 ## Build and test
 

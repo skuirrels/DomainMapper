@@ -5,6 +5,26 @@ namespace DomainMap.Diagnostics;
 
 public static class DiagnosticDescriptors
 {
+    public static readonly DiagnosticDescriptor DomainFactoryCannotBeSatisfied = new(
+        "DMAP001",
+        "Domain factory cannot be satisfied",
+        "The domain factory {0} cannot construct {1} from {2}. Required parameters could not be mapped: {3}.",
+        DiagnosticCategories.DomainBoundary,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: BuildHelpUri("DMAP001")
+    );
+
+    public static readonly DiagnosticDescriptor DomainFactoryCannotBeUsedInProjection = new(
+        "DMAP002",
+        "Domain factory cannot be used in a projection",
+        "The domain factory {0} cannot construct {1} in a queryable projection. Project to a read model instead.",
+        DiagnosticCategories.DomainBoundary,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: BuildHelpUri("DMAP002")
+    );
+
     public static readonly DiagnosticDescriptor UnsupportedMappingMethodSignature = new(
         "RMG001",
         "Has an unsupported mapping method signature",

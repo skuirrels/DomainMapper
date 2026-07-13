@@ -6,6 +6,12 @@ namespace DomainMap.Abstractions
     public sealed class DomainFactoryAttribute : System.Attribute
     {
         public DomainFactoryAttribute() { }
+        public DomainMap.Abstractions.DomainFactoryInput Input { get; set; }
+    }
+    public enum DomainFactoryInput
+    {
+        Members = 0,
+        Source = 1,
     }
     [System.AttributeUsage(System.AttributeTargets.Class)]
     [System.Diagnostics.Conditional("DOMAINMAP_ABSTRACTIONS_SCOPE_RUNTIME")]

@@ -39,6 +39,8 @@ public abstract class MembersMappingBuilderContext<T>(MappingBuilderContext buil
 
     public void SetTargetMemberMapped(IMappableMember targetMember) => _state.SetTargetMemberMapped(targetMember);
 
+    public void SetAllSourceMembersMapped() => _state.SetAllSourceMembersMapped();
+
     protected void SetTargetMemberMapped(string targetMemberName, bool ignoreCase = false) =>
         _state.SetTargetMemberMapped(targetMemberName, ignoreCase);
 

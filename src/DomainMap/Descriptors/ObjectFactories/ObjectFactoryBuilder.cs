@@ -21,11 +21,14 @@ public static class ObjectFactoryBuilder
 
     private static ObjectFactory? BuildObjectFactory(SimpleMappingBuilderContext ctx, IMethodSymbol methodSymbol, bool isStatic)
     {
+        var domainFactory = ctx.AttributeAccessor.AccessFirstOrDefault<DomainFactoryAttribute>(methodSymbol);
+        var mapsWholeSource = domainFactory?.Input == DomainFactoryInput.Source;
         var mapToParameters =
-            ctx.SymbolAccessor.HasAttribute<DomainFactoryAttribute>(methodSymbol)
+            domainFactory?.Input == DomainFactoryInput.Members
             || ctx.AttributeAccessor.AccessFirstOrDefault<ObjectFactoryAttribute>(methodSymbol)?.MapToParameters == true;
         if (
             methodSymbol.IsAsync
+            || (mapsWholeSource && methodSymbol.Parameters.Length != 1)
             || (!mapToParameters && methodSymbol.Parameters.Length > 1)
             || methodSymbol.IsPartialDefinition
             || methodSymbol.MethodKind != MethodKind.Ordinary
@@ -68,6 +71,13 @@ public static class ObjectFactoryBuilder
     internal static bool IsFactory(SimpleMappingBuilderContext ctx, IMethodSymbol methodSymbol) =>
         ctx.SymbolAccessor.HasAttribute<DomainFactoryAttribute>(methodSymbol)
         || ctx.SymbolAccessor.HasAttribute<ObjectFactoryAttribute>(methodSymbol);
+
+    internal static bool IsWholeSourceDomainFactory(SimpleMappingBuilderContext ctx, IMethodSymbol methodSymbol) =>
+        ctx.AttributeAccessor.AccessFirstOrDefault<DomainFactoryAttribute>(methodSymbol)?.Input == DomainFactoryInput.Source
+        && !methodSymbol.IsAsync
+        && methodSymbol.Parameters.Length == 1
+        && !methodSymbol.IsPartialDefinition
+        && !methodSymbol.ReturnsVoid;
 
     private static ObjectFactory? BuildGenericSingleTypeParameterObjectFactory(SimpleMappingBuilderContext ctx, IMethodSymbol methodSymbol)
     {

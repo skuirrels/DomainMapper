@@ -1,0 +1,10 @@
+---
+sidebar_label: DMAP002
+description: 'DomainMap analyzer diagnostic DMAP002 — Domain factory cannot be used in a queryable projection'
+---
+
+# DMAP002 — Domain factory cannot be used in a queryable projection
+
+DomainMap emits `DMAP002` when a required aggregate factory would be called inside an `IQueryable` expression. Query providers generally cannot translate arbitrary domain methods safely.
+
+Project persistence data into a read model in the query. If an aggregate must be reconstructed, materialize the required data first and call a normal DomainMap mapping outside the query provider.

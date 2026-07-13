@@ -1,3 +1,4 @@
+using DomainMap.Abstractions;
 using DomainMap.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -11,6 +12,8 @@ namespace DomainMap.Descriptors.ObjectFactories;
 public abstract class ObjectFactory(SymbolAccessor symbolAccessor, IMethodSymbol method, bool mapToParameters = false)
 {
     internal IMethodSymbol Method { get; } = method;
+
+    internal bool IsDomainFactory { get; } = symbolAccessor.HasAttribute<DomainFactoryAttribute>(method);
 
     internal bool MapToParameters { get; } = mapToParameters;
 

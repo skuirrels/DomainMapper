@@ -8,6 +8,8 @@ public class InstanceConstructor(INamedTypeSymbol type) : IInstanceConstructor
 {
     public bool SupportsObjectInitializer => true;
 
+    public bool SupportsMemberAssignment => true;
+
     public ExpressionSyntax CreateInstance(
         TypeMappingBuildContext ctx,
         IEnumerable<ArgumentSyntax> args,

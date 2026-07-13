@@ -12,7 +12,11 @@ namespace DomainMap.Descriptors.ObjectFactories;
 public class ObjectFactoryConstructorAdapter(ObjectFactory objectFactory, ITypeSymbol sourceType, ITypeSymbol targetType)
     : IParameterMappingInstanceConstructor
 {
+    public bool IsDomainFactory => objectFactory.IsDomainFactory;
+
     public bool SupportsObjectInitializer => false;
+
+    public bool SupportsMemberAssignment => !objectFactory.IsDomainFactory;
 
     public bool SupportsParameterMapping => objectFactory.MapToParameters;
 

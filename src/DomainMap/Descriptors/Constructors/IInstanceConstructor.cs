@@ -16,6 +16,12 @@ public interface IInstanceConstructor
     /// </summary>
     bool SupportsObjectInitializer { get; }
 
+    /// <summary>
+    /// Whether properties may be assigned after construction.
+    /// Domain factories return a complete domain value and therefore disable post-construction assignment.
+    /// </summary>
+    bool SupportsMemberAssignment { get; }
+
     ExpressionSyntax CreateInstance(
         TypeMappingBuildContext ctx,
         IEnumerable<ArgumentSyntax> args,

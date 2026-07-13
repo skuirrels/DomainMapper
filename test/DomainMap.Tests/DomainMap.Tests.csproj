@@ -12,4 +12,7 @@
     <ProjectReference Include="..\..\src\DomainMap\DomainMap.csproj" />
     <ProjectReference Include="..\..\src\DomainMap.Abstractions\DomainMap.Abstractions.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\benchmarks\DomainMap.Benchmarks\ComparisonBenchmarkGate.cs" Link="Benchmarking\ComparisonBenchmarkGate.cs" />
+  </ItemGroup>
 </Project>
