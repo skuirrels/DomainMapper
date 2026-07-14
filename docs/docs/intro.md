@@ -7,9 +7,9 @@ description: Introduction into DomainMap.
 
 **Map data. Preserve intent.**
 
-DomainMap is an experimental compile-time mapper for .NET with a domain-driven design bias. It generates readable C# without runtime reflection and keeps aggregate construction, value-object validation, and invariants in user-owned domain code.
+DomainMap is a compile-time mapper for .NET with a domain-driven design bias. It generates readable C# without runtime reflection and keeps aggregate construction, value-object validation, and invariants in user-owned domain code.
 
-DomainMap is an independent Apache-2.0 derivative of [Mapperly](https://github.com/riok/mapperly). It retains Mapperly's broad structural mapping engine while exploring a domain-first API.
+DomainMap is an independent Apache-2.0 derivative of [Mapperly](https://github.com/riok/mapperly). It is not affiliated with or endorsed by the Mapperly maintainers. Its domain-first API keeps construction and aggregate invariants under domain ownership.
 
 ## The domain boundary is the API
 
@@ -38,4 +38,4 @@ public static partial class OrdersMap
 
 ## Status
 
-DomainMap is currently source-built and experimental; it is not yet a published NuGet product. Start with the [installation guide](/docs/getting-started/installation), then read [domain boundaries](/docs/configuration/domain-boundaries) before exploring the inherited mapping capabilities.
+DomainMap v1.0.0 is available as a GitHub source release; NuGet publishing is intentionally deferred. Start with the [installation guide](/docs/getting-started/installation), then read [domain boundaries](/docs/configuration/domain-boundaries) before exploring its structural mapping capabilities.

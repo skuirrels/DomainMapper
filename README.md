@@ -4,7 +4,7 @@
 
 DomainMap is a compile-time object mapper for .NET 10 with a domain-driven design bias. It generates readable C# with no runtime reflection, while keeping constructors, named factories, value objects, and aggregate invariants under domain ownership.
 
-> Status: experimental standalone fork. DomainMap is derived from [Mapperly](https://github.com/riok/mapperly) under Apache-2.0 and retains its mature structural mapping engine. See [NOTICE](NOTICE).
+> **Status:** v1.0.0 is available as a GitHub source release; NuGet publishing is intentionally deferred. DomainMap is an independent derivative of [Mapperly](https://github.com/riok/mapperly) under Apache-2.0. It is not affiliated with or endorsed by the Mapperly maintainers. See [NOTICE](NOTICE).
 
 ## The API
 
