@@ -20,13 +20,13 @@ Existing-target benchmarks return the mutated target to BenchmarkDotNet. This ma
 
 Captured on 14 July 2026 using .NET SDK 10.0.300 and .NET 10.0.8 on an Arm64 Apple M4 Pro. These are local observations, not a general performance claim.
 
-| Runtime scenario     | DomainMap | Mapperly | DomainMap ratio |  Allocation |
-| -------------------- | --------: | -------: | --------------: | ----------: |
-| Domain factory       |  4.345 ns | 4.621 ns |            0.94 | 64 B / 64 B |
-| Existing target      |  0.746 ns | 0.731 ns |            1.02 |   0 B / 0 B |
-| Flat object          |  4.205 ns | 3.878 ns |            1.08 | 64 B / 64 B |
-| Nested collection    | 29.904 ns | 29.338 ns |            1.02 |   288 B / 288 B |
-| Value-object factory |  2.045 ns | 2.028 ns |            1.01 | 24 B / 24 B |
+| Runtime scenario     | DomainMap |  Mapperly | DomainMap ratio |    Allocation |
+| -------------------- | --------: | --------: | --------------: | ------------: |
+| Domain factory       |  4.345 ns |  4.621 ns |            0.94 |   64 B / 64 B |
+| Existing target      |  0.746 ns |  0.731 ns |            1.02 |     0 B / 0 B |
+| Flat object          |  4.205 ns |  3.878 ns |            1.08 |   64 B / 64 B |
+| Nested collection    | 29.904 ns | 29.338 ns |            1.02 | 288 B / 288 B |
+| Value-object factory |  2.045 ns |  2.028 ns |            1.01 |   24 B / 24 B |
 
 The generated runtime code has the same shape in the non-factory scenarios, and the DDD-facing API does not introduce a runtime abstraction layer. Small sub-nanosecond differences should not be treated as meaningful without repeated runs on dedicated hardware.
 
