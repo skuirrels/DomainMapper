@@ -12,6 +12,8 @@ DomainMap compares itself against Mapperly 4.3.1, the latest stable release when
 - aggregate creation through an invariant-preserving factory;
 - strongly typed value construction through a whole-source domain factory.
 
+BenchmarkDotNet launches each comparison case in its own process. This isolates tiered JIT, GC, and benchmark ordering state, which is important when equivalent generated methods complete within a few nanoseconds of each other.
+
 Existing-target benchmarks return the mutated target to BenchmarkDotNet. This makes the writes observable and prevents the JIT from reducing a mapping to dead stores when both mappers update preallocated objects.
 
 `SourceGeneratorBenchmarks` runs each incremental generator over the same in-memory Roslyn compilation. BenchmarkDotNet launches the DomainMap and Mapperly cases in separate processes so tiered JIT and GC state cannot leak from one implementation into the other. Starting from immutable generator drivers makes each invocation a comparable cold generation pass without MSBuild, filesystem, or named-pipe noise.
@@ -29,6 +31,8 @@ Captured on 14 July 2026 using .NET SDK 10.0.300 and .NET 10.0.8 on an Arm64 App
 | Value-object factory |  2.045 ns |  2.028 ns |            1.01 |   24 B / 24 B |
 
 The generated runtime code has the same shape in the non-factory scenarios, and the DDD-facing API does not introduce a runtime abstraction layer. Small sub-nanosecond differences should not be treated as meaningful without repeated runs on dedicated hardware.
+
+The flat DomainMap and Mapperly methods compile to the same 56-byte IL body. After moving the paired runtime benchmarks out of process, two focused 20-iteration runs measured DomainMap versus Mapperly at **4.022 ns versus 4.284 ns**, then **4.057 ns versus 4.041 ns**, with 64 B allocated by both. The repeat resolves to a `1.00x` ratio and confirms that apparent single-run flat-mapping leads are measurement variance rather than different generated work.
 
 ### Cleaner API confirmation
 

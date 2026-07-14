@@ -12,7 +12,6 @@ namespace DomainMap.Benchmarks;
 [CategoriesColumn]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
-[InProcess]
 public class ComparisonMappingBenchmarks
 {
     private readonly BenchmarkFlatSource _flat = new()
