@@ -32,9 +32,9 @@ The generated runtime code has the same shape in the non-factory scenarios, and 
 
 ### Cleaner API confirmation
 
-After switching the DomainMap aggregate benchmark to `[MapToFactory(nameof(BenchmarkAggregate.Create))]`, a focused 20-iteration run measured DomainMap at **4.429 ns and 64 B** versus Mapperly at **4.917 ns and 64 B** (`0.90x`). The cleaner declaration therefore adds no runtime wrapper or allocation; it generates the same direct factory call shape. As with the wider results above, this sub-nanosecond lead is a local observation rather than a general performance claim.
+After switching the DomainMap aggregate benchmark to `[MapToFactory(nameof(BenchmarkAggregate.Create))]`, a focused 20-iteration run measured DomainMap at **4.428 ns and 64 B** versus Mapperly at **4.759 ns and 64 B** (`0.93x`). The cleaner declaration therefore adds no runtime wrapper or allocation; it generates the same direct factory call shape. As with the wider results above, this sub-nanosecond lead is a local observation rather than a general performance claim.
 
-The isolated cold source-generation run measured DomainMap at 2.037 ms and 1,657,730 B versus Mapperly at 1.712 ms and 1,510,314 B: `1.19x` time and `1.10x` allocation. An immediately preceding isolated run measured a `1.16x` time ratio and the same `1.10x` allocation ratio. This is within the parity gate but remains an optimization target.
+The isolated cold source-generation run measured DomainMap at 2.110 ms and 1,701,692 B versus Mapperly at 1.927 ms and 1,538,005 B: `1.095x` time and `1.11x` allocation. This is within the `1.25x` time and `1.20x` generator-allocation gates but remains an optimization target.
 
 ## Reproduce
 

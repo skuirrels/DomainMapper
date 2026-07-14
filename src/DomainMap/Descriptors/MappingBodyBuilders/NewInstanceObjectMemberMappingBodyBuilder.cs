@@ -192,14 +192,8 @@ public static class NewInstanceObjectMemberMappingBodyBuilder
     {
         parameterMappings = [];
         var mappingMethod = ctx.BuilderContext.UserSymbol;
-        if (mappingMethod == null)
+        if (mappingMethod == null || ctx.BuilderContext.Configuration.TargetFactoryMethodName is not { } factoryName)
             return false;
-
-        var configuration = ctx.BuilderContext.AttributeAccessor.AccessFirstOrDefault<MapToFactoryAttribute>(mappingMethod);
-        if (configuration == null)
-            return false;
-
-        var factoryName = configuration.FactoryMethodName;
         var targetType = ctx.Mapping.TargetType.NonNullable();
         var factoryMethods = string.IsNullOrWhiteSpace(factoryName)
             ? []

@@ -5,6 +5,7 @@ namespace DomainMap.Configuration;
 
 public record MappingConfiguration(
     DomainMapperAttribute Mapper,
+    string? TargetFactoryMethodName,
     EnumMappingConfiguration Enum,
     MembersMappingConfiguration Members,
     IReadOnlyCollection<DerivedTypeMappingConfiguration> DerivedTypes,

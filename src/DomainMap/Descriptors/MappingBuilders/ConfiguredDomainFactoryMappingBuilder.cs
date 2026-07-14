@@ -13,10 +13,8 @@ public static class ConfiguredDomainFactoryMappingBuilder
 {
     public static INewInstanceMapping? TryBuildMapping(MappingBuilderContext ctx)
     {
-        if (ctx.UserSymbol == null || !ctx.SymbolAccessor.HasAttribute<MapToFactoryAttribute>(ctx.UserSymbol))
+        if (ctx.Configuration.TargetFactoryMethodName is not { } factoryMethodName)
             return null;
-
-        var configuration = ctx.AttributeAccessor.AccessFirstOrDefault<MapToFactoryAttribute>(ctx.UserSymbol)!;
 
         var sourceIsQueryable = ctx.Source.ImplementsGeneric(ctx.Types.Get(typeof(IQueryable<>)), out _);
         var targetIsQueryable = ctx.Target.ImplementsGeneric(ctx.Types.Get(typeof(IQueryable<>)), out var targetQueryable);
@@ -26,8 +24,8 @@ public static class ConfiguredDomainFactoryMappingBuilder
             var targetType = isQueryableProjection ? targetQueryable!.TypeArguments[0] : ctx.Target;
             ctx.ReportDiagnosticAtSymbol(
                 DiagnosticDescriptors.DomainFactoryCannotBeUsedInProjection,
-                ctx.UserSymbol,
-                configuration.FactoryMethodName,
+                ctx.UserSymbol!,
+                factoryMethodName,
                 targetType
             );
             return new UnimplementedMapping(ctx.Source, ctx.Target);

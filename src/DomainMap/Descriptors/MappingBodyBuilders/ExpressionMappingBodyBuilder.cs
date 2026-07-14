@@ -1,4 +1,3 @@
-using DomainMap.Abstractions;
 using DomainMap.Descriptors.MappingBuilders;
 using DomainMap.Descriptors.Mappings;
 using DomainMap.Descriptors.Mappings.UserMappings;
@@ -17,12 +16,12 @@ public static class ExpressionMappingBodyBuilder
         var sourceType = mapping.ExpressionSourceType;
         var targetType = mapping.ExpressionTargetType;
 
-        if (ctx.AttributeAccessor.AccessFirstOrDefault<MapToFactoryAttribute>(mapping.Method) is { } factoryConfiguration)
+        if (ctx.Configuration.TargetFactoryMethodName is { } factoryMethodName)
         {
             ctx.ReportDiagnosticAtSymbol(
                 DiagnosticDescriptors.DomainFactoryCannotBeUsedInProjection,
                 mapping.Method,
-                factoryConfiguration.FactoryMethodName,
+                factoryMethodName,
                 targetType
             );
             return;
