@@ -10,7 +10,7 @@ public class ComparisonBenchmarkGateTest
     {
         var report = WriteReport(("MapperlyFlat", 100, 64), ("DomainMapFlat", 120, 96));
 
-        var result = ComparisonBenchmarkGate.Evaluate(report, new ComparisonGateOptions(1.25, 1.10, 32));
+        var result = ComparisonBenchmarkGate.Evaluate(report, new ComparisonGateOptions(1.25, 0, 1.10, 32));
 
         result.Passed.ShouldBeTrue();
         result.Comparisons.ShouldHaveSingleItem().Scenario.ShouldBe("Flat");
@@ -21,10 +21,31 @@ public class ComparisonBenchmarkGateTest
     {
         var report = WriteReport(("MapperlyFlat", 100, 64), ("DomainMapFlat", 126, 64));
 
-        var result = ComparisonBenchmarkGate.Evaluate(report, new ComparisonGateOptions(1.25, 1.10, 0));
+        var result = ComparisonBenchmarkGate.Evaluate(report, new ComparisonGateOptions(1.25, 0, 1.10, 0));
 
         result.Passed.ShouldBeFalse();
         result.Comparisons.ShouldHaveSingleItem().Failure.ShouldNotBeNull().ShouldContain("time ratio");
+    }
+
+    [Fact]
+    public void PassesSubNanosecondDifferenceWithinTimeSlack()
+    {
+        var report = WriteReport(("MapperlyExistingTarget", 2, 0), ("DomainMapExistingTarget", 2.9, 0));
+
+        var result = ComparisonBenchmarkGate.Evaluate(report, new ComparisonGateOptions(1.25, 0.5, 1.10, 0));
+
+        result.Passed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void FailsWhenTimeExceedsRatioAndSlack()
+    {
+        var report = WriteReport(("MapperlyExistingTarget", 2, 0), ("DomainMapExistingTarget", 3.1, 0));
+
+        var result = ComparisonBenchmarkGate.Evaluate(report, new ComparisonGateOptions(1.25, 0.5, 1.10, 0));
+
+        result.Passed.ShouldBeFalse();
+        result.Comparisons.ShouldHaveSingleItem().Failure.ShouldNotBeNull().ShouldContain("mean time");
     }
 
     [Fact]
@@ -32,7 +53,7 @@ public class ComparisonBenchmarkGateTest
     {
         var report = WriteReport(("MapperlyFlat", 100, 64), ("DomainMapFlat", 100, 136));
 
-        var result = ComparisonBenchmarkGate.Evaluate(report, new ComparisonGateOptions(1.25, 1.10, 64));
+        var result = ComparisonBenchmarkGate.Evaluate(report, new ComparisonGateOptions(1.25, 0, 1.10, 64));
 
         result.Passed.ShouldBeFalse();
         result.Comparisons.ShouldHaveSingleItem().Failure.ShouldNotBeNull().ShouldContain("allocated bytes");
@@ -43,7 +64,7 @@ public class ComparisonBenchmarkGateTest
     {
         var report = WriteReport(("MapperlyFlat", 100, 64));
 
-        var result = ComparisonBenchmarkGate.Evaluate(report, new ComparisonGateOptions(1.25, 1.10, 64));
+        var result = ComparisonBenchmarkGate.Evaluate(report, new ComparisonGateOptions(1.25, 0, 1.10, 64));
 
         result.Passed.ShouldBeFalse();
         result.Errors.ShouldHaveSingleItem().ShouldContain("Missing DomainMap benchmark pair");
@@ -54,7 +75,7 @@ public class ComparisonBenchmarkGateTest
     {
         var report = WriteReport(("MapperlyFlat", 100, 64), ("DomainMapFlat", 100, 64), ("DomainMapUnpaired", 100, 64));
 
-        var result = ComparisonBenchmarkGate.Evaluate(report, new ComparisonGateOptions(1.25, 1.10, 64));
+        var result = ComparisonBenchmarkGate.Evaluate(report, new ComparisonGateOptions(1.25, 0, 1.10, 64));
 
         result.Passed.ShouldBeFalse();
         result.Errors.ShouldHaveSingleItem().ShouldContain("Missing Mapperly benchmark pair");

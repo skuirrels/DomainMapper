@@ -51,11 +51,19 @@ public class ComparisonMappingBenchmarks
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("ExistingTarget")]
-    public void MapperlyExistingTarget() => MapperlyBenchmarkMapper.UpdateFlat(_flat, _mapperlyExisting);
+    public BenchmarkFlatTarget MapperlyExistingTarget()
+    {
+        MapperlyBenchmarkMapper.UpdateFlat(_flat, _mapperlyExisting);
+        return _mapperlyExisting;
+    }
 
     [Benchmark]
     [BenchmarkCategory("ExistingTarget")]
-    public void DomainMapExistingTarget() => DomainMapBenchmarkMapper.UpdateFlat(_flat, _domainMapExisting);
+    public BenchmarkFlatTarget DomainMapExistingTarget()
+    {
+        DomainMapBenchmarkMapper.UpdateFlat(_flat, _domainMapExisting);
+        return _domainMapExisting;
+    }
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("DomainFactory")]

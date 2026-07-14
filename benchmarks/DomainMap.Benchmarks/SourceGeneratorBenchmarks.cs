@@ -13,7 +13,6 @@ namespace DomainMap.Benchmarks;
 [CategoriesColumn]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
-[InProcess]
 public class SourceGeneratorBenchmarks
 {
     private const string DomainMapAttribute = "DomainMap.Abstractions.DomainMapper";
@@ -125,11 +124,9 @@ public class SourceGeneratorBenchmarks
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("ColdGenerator")]
-    public GeneratorDriver MapperlyColdGeneration() =>
-        _mapperlyDriver!.RunGeneratorsAndUpdateCompilation(_mapperlyCompilation!, out _, out _);
+    public object MapperlyColdGeneration() => _mapperlyDriver!.RunGeneratorsAndUpdateCompilation(_mapperlyCompilation!, out _, out _);
 
     [Benchmark]
     [BenchmarkCategory("ColdGenerator")]
-    public GeneratorDriver DomainMapColdGeneration() =>
-        _domainMapDriver!.RunGeneratorsAndUpdateCompilation(_domainMapCompilation!, out _, out _);
+    public object DomainMapColdGeneration() => _domainMapDriver!.RunGeneratorsAndUpdateCompilation(_domainMapCompilation!, out _, out _);
 }

@@ -4,11 +4,17 @@ using System.Text.Json;
 
 namespace DomainMap.Benchmarks;
 
-internal sealed record ComparisonGateOptions(double MaxTimeRatio, double MaxAllocationRatio, double AllocationSlackBytes)
+internal sealed record ComparisonGateOptions(
+    double MaxTimeRatio,
+    double TimeSlackNanoseconds,
+    double MaxAllocationRatio,
+    double AllocationSlackBytes
+)
 {
     public static ComparisonGateOptions FromEnvironment() =>
         new(
             ReadDouble("DOMAINMAP_MAX_MAPPERLY_TIME_RATIO", 1.25),
+            ReadDouble("DOMAINMAP_MAPPERLY_TIME_SLACK_NS", 1),
             ReadDouble("DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO", 1.10),
             ReadDouble("DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES", 64)
         );
@@ -101,10 +107,16 @@ internal static class ComparisonBenchmarkGate
     )
     {
         var timeRatio = domainMap.MeanNanoseconds / mapperly.MeanNanoseconds;
+        var allowedMeanNanoseconds = mapperly.MeanNanoseconds * options.MaxTimeRatio + options.TimeSlackNanoseconds;
         var allowedAllocatedBytes = mapperly.AllocatedBytes * options.MaxAllocationRatio + options.AllocationSlackBytes;
         var failures = new List<string>();
-        if (timeRatio > options.MaxTimeRatio)
-            failures.Add($"time ratio {timeRatio:F3} exceeds {options.MaxTimeRatio:F3}");
+        if (domainMap.MeanNanoseconds > allowedMeanNanoseconds)
+        {
+            failures.Add(
+                $"mean time {domainMap.MeanNanoseconds:F3} ns exceeds allowed {allowedMeanNanoseconds:F3} ns "
+                    + $"({options.MaxTimeRatio:F3}x plus {options.TimeSlackNanoseconds:F3} ns slack; time ratio {timeRatio:F3})"
+            );
+        }
 
         if (domainMap.AllocatedBytes > allowedAllocatedBytes)
         {
@@ -153,7 +165,7 @@ internal static class ComparisonBenchmarkGate
         markdown.AppendLine("# DomainMap versus Mapperly performance gate");
         markdown.AppendLine();
         markdown.AppendLine(
-            $"Limits: mean time <= {options.MaxTimeRatio:F2}x Mapperly; allocated bytes <= {options.MaxAllocationRatio:F2}x Mapperly + {options.AllocationSlackBytes:F0} B."
+            $"Limits: mean time <= {options.MaxTimeRatio:F2}x Mapperly + {options.TimeSlackNanoseconds:F2} ns; allocated bytes <= {options.MaxAllocationRatio:F2}x Mapperly + {options.AllocationSlackBytes:F0} B."
         );
         markdown.AppendLine();
         markdown.AppendLine("| Scenario | Mapperly mean | DomainMap mean | Time ratio | Mapperly alloc | DomainMap alloc | Result |");
