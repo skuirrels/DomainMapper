@@ -21,11 +21,12 @@ public partial class Mapper
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
-    private static global::System.Collections.Generic.List<int> MapToListOfInt32(global::System.Collections.Generic.IReadOnlyCollection<int?> source)
+    private static global::System.Collections.Generic.List<int> MapToListOfInt32(global::System.Collections.Generic.List<int?> source)
     {
         var target = new global::System.Collections.Generic.List<int>(source.Count);
-        foreach (var item in source)
+        for (var i = 0; i < source.Count; i++)
         {
+            var item = source[i];
             target.Add(item ?? throw new global::System.ArgumentNullException(nameof(item)));
         }
         return target;

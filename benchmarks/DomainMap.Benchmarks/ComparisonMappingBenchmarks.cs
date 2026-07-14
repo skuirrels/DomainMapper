@@ -1,17 +1,15 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Order;
 using DomainMap.Abstractions;
 using MapperlyFactory = Riok.Mapperly.Abstractions.ObjectFactoryAttribute;
 using MapperlyMapper = Riok.Mapperly.Abstractions.MapperAttribute;
 
 namespace DomainMap.Benchmarks;
 
-[ArtifactsPath("artifacts")]
 [MemoryDiagnoser]
 [CategoriesColumn]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-[Orderer(SummaryOrderPolicy.FastestToSlowest)]
+[Config(typeof(BalancedComparisonConfig))]
 public class ComparisonMappingBenchmarks
 {
     private readonly BenchmarkFlatSource _flat = new()
@@ -91,7 +89,7 @@ public static partial class DomainMapBenchmarkMapper
     public static partial void UpdateFlat(BenchmarkFlatSource source, BenchmarkFlatTarget target);
 
     [DomainFactory(Input = DomainFactoryInput.Source)]
-    private static BenchmarkAggregateId ToAggregateId(int value) => new(value);
+    private static BenchmarkAggregateId ToAggregateId(int value) => new BenchmarkAggregateId(value);
 
     [MapToFactory(nameof(BenchmarkAggregate.Create))]
     public static partial BenchmarkAggregate Place(BenchmarkFlatSource source);
@@ -109,7 +107,7 @@ public static partial class MapperlyBenchmarkMapper
 
     public static partial void UpdateFlat(BenchmarkFlatSource source, BenchmarkFlatTarget target);
 
-    private static BenchmarkAggregateId ToAggregateId(int value) => new(value);
+    private static BenchmarkAggregateId ToAggregateId(int value) => new BenchmarkAggregateId(value);
 
     [MapperlyFactory]
     private static BenchmarkAggregate Create(BenchmarkFlatSource source) =>

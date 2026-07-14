@@ -30,7 +30,15 @@ public partial struct SyntaxFactoryHelper
         string counterName,
         ExpressionSyntax maxValueExclusive,
         params ExpressionSyntax[] expressions
-    )
+    ) => IncrementalForLoop(counterName, maxValueExclusive, Block(expressions));
+
+    public ForStatementSyntax IncrementalForLoop(
+        string counterName,
+        ExpressionSyntax maxValueExclusive,
+        IEnumerable<StatementSyntax> statements
+    ) => IncrementalForLoop(counterName, maxValueExclusive, Block(statements));
+
+    private ForStatementSyntax IncrementalForLoop(string counterName, ExpressionSyntax maxValueExclusive, BlockSyntax body)
     {
         var counterDeclaration = DeclareVariable(counterName, IntLiteral(0));
         var counterIncrement = PostfixUnaryExpression(SyntaxKind.PostIncrementExpression, IdentifierName(counterName));
@@ -46,7 +54,7 @@ public partial struct SyntaxFactoryHelper
             TrailingSpacedToken(SyntaxKind.SemicolonToken),
             SingletonSeparatedList<ExpressionSyntax>(counterIncrement),
             Token(SyntaxKind.CloseParenToken),
-            Block(expressions)
+            body
         );
     }
 }

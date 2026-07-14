@@ -223,6 +223,7 @@ namespace DomainMap.IntegrationTests.Mapper
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private static partial global::DomainMap.IntegrationTests.Dto.LongValueDto MapLongValue(global::DomainMap.IntegrationTests.Models.LongValue value)
         {
             var target = new global::DomainMap.IntegrationTests.Dto.LongValueDto();
@@ -259,7 +260,7 @@ namespace DomainMap.IntegrationTests.Mapper
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
-        private static global::DomainMap.IntegrationTests.Dto.TestObjectNestedDto[] MapToTestObjectNestedDtoArray(global::System.Collections.Generic.IReadOnlyCollection<global::DomainMap.IntegrationTests.Models.TestObjectNested> source)
+        private static global::DomainMap.IntegrationTests.Dto.TestObjectNestedDto[] MapToTestObjectNestedDtoArray(global::System.Collections.Generic.List<global::DomainMap.IntegrationTests.Models.TestObjectNested> source)
         {
             var target = new global::DomainMap.IntegrationTests.Dto.TestObjectNestedDto[source.Count];
             var i = 0;
@@ -305,11 +306,12 @@ namespace DomainMap.IntegrationTests.Mapper
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
-        private static global::System.Collections.Generic.List<global::DomainMap.IntegrationTests.Models.TestEnum> MapToListOfTestEnum(global::System.Collections.Generic.IReadOnlyCollection<global::DomainMap.IntegrationTests.Models.TestObjectProjectionEnumValue> source)
+        private static global::System.Collections.Generic.List<global::DomainMap.IntegrationTests.Models.TestEnum> MapToListOfTestEnum(global::System.Collections.Generic.List<global::DomainMap.IntegrationTests.Models.TestObjectProjectionEnumValue> source)
         {
             var target = new global::System.Collections.Generic.List<global::DomainMap.IntegrationTests.Models.TestEnum>(source.Count);
-            foreach (var item in source)
+            for (var i = 0; i < source.Count; i++)
             {
+                var item = source[i];
                 target.Add(MapManual(item));
             }
             return target;

@@ -37,9 +37,9 @@ env:
   BENCHMARK_BASELINE_FILE: './benchmark-results/benchmark-baseline-report.json'
   DOMAINMAP_MAX_MAPPERLY_TIME_RATIO: '1.25'
   DOMAINMAP_MAPPERLY_TIME_SLACK_NS: '1'
-  DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO: '1.10'
+  DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO: '1.00'
   DOMAINMAP_MAX_MAPPERLY_GENERATOR_ALLOCATION_RATIO: '1.20'
-  DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES: '64'
+  DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES: '0'
 
 jobs:
   benchmark:
@@ -57,7 +57,27 @@ jobs:
       - uses: actions/setup-dotnet@v5
       - name: Run ${{ matrix.BENCHMARK_NAME }}
         working-directory: ${{ env.BENCHMARKS_PATH }}
+        env:
+          DOMAINMAP_BENCHMARK_ORDER: mapperly-first
+          DOMAINMAP_BENCHMARK_ARTIFACTS: artifacts
         run: dotnet run --exporters json --configuration Release --filter '*.${{ matrix.BENCHMARK_NAME }}.*'
+      - name: Run comparison with DomainMap first
+        if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks'
+        working-directory: ${{ env.BENCHMARKS_PATH }}
+        env:
+          DOMAINMAP_BENCHMARK_ORDER: domainmap-first
+          DOMAINMAP_BENCHMARK_ARTIFACTS: artifacts/domainmap-first
+        run: dotnet run --exporters json --configuration Release --filter '*.${{ matrix.BENCHMARK_NAME }}.*'
+      - name: Prove generated runtime parity
+        if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks'
+        run: >-
+          dotnet run --no-build --configuration Release
+          --project ${{ env.BENCHMARKS_PATH }}/DomainMap.Benchmarks.csproj --
+          --write-comparison-parity
+          artifacts/obj/DomainMap.Benchmarks/release/generated/DomainMap/DomainMap.DomainMapGenerator/DomainMapBenchmarkMapper.g.cs
+          artifacts/obj/DomainMap.Benchmarks/release/generated/Riok.Mapperly/Riok.Mapperly.MapperGenerator/MapperlyBenchmarkMapper.g.cs
+          ${{ env.BENCHMARKS_PATH }}/ComparisonMappingBenchmarks.cs
+          ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap-vs-Mapperly-parity.json
       - name: Restore baseline results
         uses: actions/cache/restore@v5
         id: cache-baseline-results-restore
@@ -68,11 +88,15 @@ jobs:
             benchmarks-${{ matrix.BENCHMARK_NAME }}-main-
       - name: Enforce Mapperly parity
         if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks'
+        env:
+          DOMAINMAP_MAPPERLY_PARITY_REPORT: ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap-vs-Mapperly-parity.json
+          DOMAINMAP_MAPPERLY_FASTER_SCENARIOS: '*'
         run: >-
           dotnet run --no-build --configuration Release
           --project ${{ env.BENCHMARKS_PATH }}/DomainMap.Benchmarks.csproj --
           --check-comparison
           ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
+          ${{ env.BENCHMARK_RESULT_DIR }}/../domainmap-first/results/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
       - name: Enforce Mapperly source-generator parity
         if: matrix.BENCHMARK_NAME == 'SourceGeneratorBenchmarks'
         env:

@@ -22,12 +22,14 @@ public partial class Mapper
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private partial void MapAToB(global::A source, global::B target)
     {
         target.Value = source.Value;
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private partial void MapCToD(global::C source, global::D target)
     {
         target.Value1 = source.Value1;

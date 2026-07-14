@@ -17,5 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\..\benchmarks\DomainMap.Benchmarks\ComparisonBenchmarkGate.cs" Link="Benchmarking\ComparisonBenchmarkGate.cs" />
+    <Compile Include="..\..\benchmarks\DomainMap.Benchmarks\ComparisonCodeParity.cs" Link="Benchmarking\ComparisonCodeParity.cs" />
   </ItemGroup>
 </Project>

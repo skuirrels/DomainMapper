@@ -106,12 +106,17 @@ public abstract class MethodMapping : ITypeMapping, IParameterizedMapping
         var parameters = BuildParameterList();
         ReserveParameterNames(typeMappingBuildContext.NameBuilder, parameters);
 
+        var body = ctx.SyntaxFactory.Block(BuildBody(typeMappingBuildContext.AddIndentation()));
+        var attributes = BuildAttributes(typeMappingBuildContext);
+        if (ShouldAggressivelyInline(body))
+            attributes = attributes.Add(typeMappingBuildContext.SyntaxFactory.AggressiveInliningAttribute());
+
         var returnType = FullyQualifiedIdentifier(_returnType);
         return MethodDeclaration(returnType.AddTrailingSpace(), Identifier(MethodName))
             .WithModifiers(TokenList(BuildModifiers(ctx.IsStatic)))
             .WithParameterList(parameters)
-            .WithAttributeLists(BuildAttributes(typeMappingBuildContext))
-            .WithBody(ctx.SyntaxFactory.Block(BuildBody(typeMappingBuildContext.AddIndentation())));
+            .WithAttributeLists(attributes)
+            .WithBody(body);
     }
 
     public abstract IEnumerable<StatementSyntax> BuildBody(TypeMappingBuildContext ctx);
@@ -154,5 +159,28 @@ public abstract class MethodMapping : ITypeMapping, IParameterizedMapping
         {
             nameBuilder.Reserve(param.Identifier.Text);
         }
+    }
+
+    private bool ShouldAggressivelyInline(BlockSyntax body)
+    {
+        if (Method == null || SourceType.IsRefLikeType || TargetType.IsRefLikeType || body.Statements.Count > 6)
+            return false;
+
+        if (body.DescendantNodes().Any(x => x is InvocationExpressionSyntax or LambdaExpressionSyntax or QueryExpressionSyntax))
+            return false;
+
+        return !body.DescendantNodes()
+            .Any(x =>
+                x
+                    is ForEachStatementSyntax
+                        or ForStatementSyntax
+                        or WhileStatementSyntax
+                        or DoStatementSyntax
+                        or IfStatementSyntax
+                        or SwitchStatementSyntax
+                        or TryStatementSyntax
+                        or ThrowStatementSyntax
+                        or ThrowExpressionSyntax
+            );
     }
 }

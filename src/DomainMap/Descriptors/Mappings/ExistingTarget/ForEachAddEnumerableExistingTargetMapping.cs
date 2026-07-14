@@ -2,6 +2,7 @@ using DomainMap.Descriptors.Enumerables;
 using DomainMap.Descriptors.Enumerables.Capacity;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using static DomainMap.Emit.Syntax.SyntaxFactoryHelper;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace DomainMap.Descriptors.Mappings.ExistingTarget;
 
@@ -35,10 +36,25 @@ public class ForEachAddEnumerableExistingTargetMapping(
             yield return _capacitySetter.Build(ctx, target);
         }
 
-        var (loopItemCtx, loopItemVariableName) = ctx.WithNewSource(LoopItemVariableName);
-        var convertedSourceItemExpression = elementMapping.Build(loopItemCtx);
         var addMethod = MemberAccess(target, insertMethodName);
-        var body = ctx.SyntaxFactory.Invocation(addMethod, convertedSourceItemExpression);
-        yield return ctx.SyntaxFactory.ForEach(loopItemVariableName, ctx.Source, body);
+        if (collectionInfos.Source.CollectionType == CollectionType.List)
+        {
+            var counterName = ctx.NameBuilder.New("i");
+            var sourceItem = ElementAccess(ctx.Source, IdentifierName(counterName));
+            var (indexedItemCtx, indexedItemVariableName) = ctx.AddIndentation().WithNewSource(LoopItemVariableName);
+            var declareLoopItem = indexedItemCtx.SyntaxFactory.DeclareLocalVariable(indexedItemVariableName, sourceItem);
+            var convertedSourceItemExpression = elementMapping.Build(indexedItemCtx);
+            var addLoopItem = indexedItemCtx.SyntaxFactory.ExpressionStatement(
+                ctx.SyntaxFactory.Invocation(addMethod, convertedSourceItemExpression)
+            );
+            var count = MemberAccess(ctx.Source, collectionInfos.Source.CountMember!.Name);
+            yield return ctx.SyntaxFactory.IncrementalForLoop(counterName, count, [declareLoopItem, addLoopItem]);
+            yield break;
+        }
+
+        var (loopItemCtx, loopItemVariableName) = ctx.WithNewSource(LoopItemVariableName);
+        var convertedLoopItemExpression = elementMapping.Build(loopItemCtx);
+        var loopBody = ctx.SyntaxFactory.Invocation(addMethod, convertedLoopItemExpression);
+        yield return ctx.SyntaxFactory.ForEach(loopItemVariableName, ctx.Source, loopBody);
     }
 }

@@ -11,13 +11,39 @@ internal sealed record ComparisonGateOptions(
     double AllocationSlackBytes
 )
 {
-    public static ComparisonGateOptions FromEnvironment() =>
-        new(
+    private const string ParityReportEnvironmentVariable = "DOMAINMAP_MAPPERLY_PARITY_REPORT";
+    private const string FasterScenariosEnvironmentVariable = "DOMAINMAP_MAPPERLY_FASTER_SCENARIOS";
+
+    public IReadOnlySet<string> ProvenParityScenarios { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+
+    public IReadOnlySet<string> RequireFasterScenarios { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+
+    public double ConfidenceZScore { get; init; } = 1.645;
+
+    public static ComparisonGateOptions FromEnvironment()
+    {
+        var parityReportPath = Environment.GetEnvironmentVariable(ParityReportEnvironmentVariable);
+        var parityScenarios = string.IsNullOrWhiteSpace(parityReportPath)
+            ? new HashSet<string>(StringComparer.Ordinal)
+            : ComparisonCodeParity.Read(parityReportPath).EquivalentScenarios;
+
+        return new ComparisonGateOptions(
             ReadDouble("DOMAINMAP_MAX_MAPPERLY_TIME_RATIO", 1.25),
             ReadDouble("DOMAINMAP_MAPPERLY_TIME_SLACK_NS", 1),
             ReadDouble("DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO", 1.10),
             ReadDouble("DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES", 64)
-        );
+        )
+        {
+            ProvenParityScenarios = parityScenarios,
+            RequireFasterScenarios = ReadSet(FasterScenariosEnvironmentVariable),
+            ConfidenceZScore = ReadDouble("DOMAINMAP_MAPPERLY_CONFIDENCE_Z", 1.645),
+        };
+    }
+
+    private static IReadOnlySet<string> ReadSet(string name) =>
+        (Environment.GetEnvironmentVariable(name) ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.Ordinal);
 
     private static double ReadDouble(string name, double defaultValue)
     {
@@ -28,11 +54,16 @@ internal sealed record ComparisonGateOptions(
 
 internal sealed record BenchmarkComparison(
     string Scenario,
-    double MapperlyMeanNanoseconds,
-    double DomainMapMeanNanoseconds,
+    string Expectation,
+    double MapperlyMedianNanoseconds,
+    double DomainMapMedianNanoseconds,
     double TimeRatio,
+    double UpperDifferenceConfidenceBoundNanoseconds,
     double MapperlyAllocatedBytes,
     double DomainMapAllocatedBytes,
+    int ReportCount,
+    int MapperlySampleCount,
+    int DomainMapSampleCount,
     bool Passed,
     string? Failure
 );
@@ -47,9 +78,12 @@ internal static class ComparisonBenchmarkGate
     private const string DomainMapPrefix = "DomainMap";
     private const string MapperlyPrefix = "Mapperly";
 
-    public static int Run(string reportPath, string outputDirectory, ComparisonGateOptions options)
+    public static int Run(string reportPath, string outputDirectory, ComparisonGateOptions options) =>
+        Run([reportPath], outputDirectory, options);
+
+    public static int Run(IReadOnlyList<string> reportPaths, string outputDirectory, ComparisonGateOptions options)
     {
-        var result = Evaluate(reportPath, options);
+        var result = Evaluate(reportPaths, options);
         Directory.CreateDirectory(outputDirectory);
         File.WriteAllText(Path.Combine(outputDirectory, "DomainMap-vs-Mapperly-gate.md"), BuildMarkdown(result, options));
         File.WriteAllText(
@@ -60,40 +94,55 @@ internal static class ComparisonBenchmarkGate
         return result.Passed ? 0 : 1;
     }
 
-    internal static ComparisonGateResult Evaluate(string reportPath, ComparisonGateOptions options)
-    {
-        using var report = JsonDocument.Parse(File.ReadAllText(reportPath));
-        if (!report.RootElement.TryGetProperty("Benchmarks", out var benchmarksElement))
-            return new ComparisonGateResult([], ["BenchmarkDotNet report does not contain a Benchmarks collection."]);
+    internal static ComparisonGateResult Evaluate(string reportPath, ComparisonGateOptions options) => Evaluate([reportPath], options);
 
-        var benchmarks = benchmarksElement
-            .EnumerateArray()
-            .Select(ReadBenchmark)
-            .Where(x => x != null)
-            .ToDictionary(x => x!.Method, x => x!, StringComparer.Ordinal);
-        var mapperlyBenchmarks = benchmarks.Values.Where(x => x.Method.StartsWith(MapperlyPrefix, StringComparison.Ordinal)).ToArray();
-        if (mapperlyBenchmarks.Length == 0)
+    internal static ComparisonGateResult Evaluate(IReadOnlyList<string> reportPaths, ComparisonGateOptions options)
+    {
+        if (reportPaths.Count == 0)
+            return new ComparisonGateResult([], ["No benchmark reports were provided."]);
+
+        var reportRuns = reportPaths.Select(ReadReport).ToArray();
+        var allMethodNames = reportRuns.SelectMany(x => x.Keys).ToHashSet(StringComparer.Ordinal);
+        var mapperlyMethods = allMethodNames.Where(x => x.StartsWith(MapperlyPrefix, StringComparison.Ordinal)).Order().ToArray();
+        if (mapperlyMethods.Length == 0)
             return new ComparisonGateResult([], ["No Mapperly comparison benchmarks were found."]);
 
         var comparisons = new List<BenchmarkComparison>();
         var errors = new List<string>();
-        foreach (var mapperly in mapperlyBenchmarks)
+        foreach (var mapperlyMethod in mapperlyMethods)
         {
-            var scenario = mapperly.Method[MapperlyPrefix.Length..];
-            if (!benchmarks.TryGetValue(DomainMapPrefix + scenario, out var domainMap))
+            var scenario = mapperlyMethod[MapperlyPrefix.Length..];
+            var domainMapMethod = DomainMapPrefix + scenario;
+            if (!allMethodNames.Contains(domainMapMethod))
             {
-                errors.Add($"Missing DomainMap benchmark pair for {mapperly.Method}.");
+                errors.Add($"Missing DomainMap benchmark pair for {mapperlyMethod}.");
                 continue;
             }
 
-            comparisons.Add(Compare(scenario, mapperly, domainMap, options));
+            var pairedRuns = new List<(BenchmarkRunMeasurement Mapperly, BenchmarkRunMeasurement DomainMap)>();
+            for (var reportIndex = 0; reportIndex < reportRuns.Length; reportIndex++)
+            {
+                var report = reportRuns[reportIndex];
+                var hasMapperly = report.TryGetValue(mapperlyMethod, out var mapperly);
+                var hasDomainMap = report.TryGetValue(domainMapMethod, out var domainMap);
+                if (!hasMapperly || !hasDomainMap)
+                {
+                    errors.Add($"Report {reportPaths[reportIndex]} does not contain a complete pair for {scenario}.");
+                    continue;
+                }
+
+                pairedRuns.Add((mapperly!, domainMap!));
+            }
+
+            if (pairedRuns.Count > 0)
+                comparisons.Add(Compare(scenario, pairedRuns, options));
         }
 
-        foreach (var domainMap in benchmarks.Values.Where(x => x.Method.StartsWith(DomainMapPrefix, StringComparison.Ordinal)))
+        foreach (var domainMapMethod in allMethodNames.Where(x => x.StartsWith(DomainMapPrefix, StringComparison.Ordinal)))
         {
-            var scenario = domainMap.Method[DomainMapPrefix.Length..];
-            if (!benchmarks.ContainsKey(MapperlyPrefix + scenario))
-                errors.Add($"Missing Mapperly benchmark pair for {domainMap.Method}.");
+            var scenario = domainMapMethod[DomainMapPrefix.Length..];
+            if (!allMethodNames.Contains(MapperlyPrefix + scenario))
+                errors.Add($"Missing Mapperly benchmark pair for {domainMapMethod}.");
         }
 
         return new ComparisonGateResult(comparisons, errors);
@@ -101,41 +150,94 @@ internal static class ComparisonBenchmarkGate
 
     private static BenchmarkComparison Compare(
         string scenario,
-        BenchmarkMeasurement mapperly,
-        BenchmarkMeasurement domainMap,
+        IReadOnlyList<(BenchmarkRunMeasurement Mapperly, BenchmarkRunMeasurement DomainMap)> pairedRuns,
         ComparisonGateOptions options
     )
     {
-        var timeRatio = domainMap.MeanNanoseconds / mapperly.MeanNanoseconds;
-        var allowedMeanNanoseconds = mapperly.MeanNanoseconds * options.MaxTimeRatio + options.TimeSlackNanoseconds;
-        var allowedAllocatedBytes = mapperly.AllocatedBytes * options.MaxAllocationRatio + options.AllocationSlackBytes;
+        var mapperlyValues = pairedRuns.SelectMany(x => x.Mapperly.Values).ToArray();
+        var domainMapValues = pairedRuns.SelectMany(x => x.DomainMap.Values).ToArray();
+        var mapperlyMedian = Median(mapperlyValues);
+        var domainMapMedian = Median(domainMapValues);
+        var timeRatio = domainMapMedian / mapperlyMedian;
+        var upperDifferenceBound = DifferenceUpperConfidenceBound(mapperlyValues, domainMapValues, options.ConfidenceZScore);
+        var mapperlyAllocatedBytes = pairedRuns.Max(x => x.Mapperly.AllocatedBytes);
+        var domainMapAllocatedBytes = pairedRuns.Max(x => x.DomainMap.AllocatedBytes);
         var failures = new List<string>();
-        if (domainMap.MeanNanoseconds > allowedMeanNanoseconds)
+
+        string expectation;
+        if (options.ProvenParityScenarios.Contains(scenario))
         {
-            failures.Add(
-                $"mean time {domainMap.MeanNanoseconds:F3} ns exceeds allowed {allowedMeanNanoseconds:F3} ns "
-                    + $"({options.MaxTimeRatio:F3}x plus {options.TimeSlackNanoseconds:F3} ns slack; time ratio {timeRatio:F3})"
-            );
+            expectation = "PROVEN PARITY";
+        }
+        else if (options.RequireFasterScenarios.Contains("*") || options.RequireFasterScenarios.Contains(scenario))
+        {
+            expectation = "FASTER";
+            if (domainMapMedian >= mapperlyMedian || upperDifferenceBound >= 0)
+            {
+                failures.Add(
+                    $"DomainMap is not statistically faster: median {domainMapMedian:F3} ns versus {mapperlyMedian:F3} ns; "
+                        + $"one-sided confidence bound for DomainMap minus Mapperly is {upperDifferenceBound:F3} ns"
+                );
+            }
+        }
+        else
+        {
+            expectation = "REGRESSION LIMIT";
+            var allowedMedianNanoseconds = mapperlyMedian * options.MaxTimeRatio + options.TimeSlackNanoseconds;
+            if (domainMapMedian > allowedMedianNanoseconds)
+            {
+                failures.Add(
+                    $"median time {domainMapMedian:F3} ns exceeds allowed {allowedMedianNanoseconds:F3} ns "
+                        + $"({options.MaxTimeRatio:F3}x plus {options.TimeSlackNanoseconds:F3} ns slack; time ratio {timeRatio:F3})"
+                );
+            }
         }
 
-        if (domainMap.AllocatedBytes > allowedAllocatedBytes)
+        for (var runIndex = 0; runIndex < pairedRuns.Count; runIndex++)
         {
-            failures.Add($"allocated bytes {domainMap.AllocatedBytes:F0} exceed allowed {allowedAllocatedBytes:F0}");
+            var mapperlyAllocation = pairedRuns[runIndex].Mapperly.AllocatedBytes;
+            var domainMapAllocation = pairedRuns[runIndex].DomainMap.AllocatedBytes;
+            var allowedAllocation = mapperlyAllocation * options.MaxAllocationRatio + options.AllocationSlackBytes;
+            if (domainMapAllocation > allowedAllocation)
+            {
+                failures.Add(
+                    $"run {runIndex + 1} allocated bytes {domainMapAllocation:F0} exceed allowed {allowedAllocation:F0} "
+                        + $"from Mapperly's {mapperlyAllocation:F0} B"
+                );
+            }
         }
 
         return new BenchmarkComparison(
             scenario,
-            mapperly.MeanNanoseconds,
-            domainMap.MeanNanoseconds,
+            expectation,
+            mapperlyMedian,
+            domainMapMedian,
             timeRatio,
-            mapperly.AllocatedBytes,
-            domainMap.AllocatedBytes,
+            upperDifferenceBound,
+            mapperlyAllocatedBytes,
+            domainMapAllocatedBytes,
+            pairedRuns.Count,
+            mapperlyValues.Length,
+            domainMapValues.Length,
             failures.Count == 0,
             failures.Count == 0 ? null : string.Join("; ", failures)
         );
     }
 
-    private static BenchmarkMeasurement? ReadBenchmark(JsonElement benchmark)
+    private static IReadOnlyDictionary<string, BenchmarkRunMeasurement> ReadReport(string reportPath)
+    {
+        using var report = JsonDocument.Parse(File.ReadAllText(reportPath));
+        if (!report.RootElement.TryGetProperty("Benchmarks", out var benchmarksElement))
+            return new Dictionary<string, BenchmarkRunMeasurement>(StringComparer.Ordinal);
+
+        return benchmarksElement
+            .EnumerateArray()
+            .Select(ReadBenchmark)
+            .Where(x => x != null)
+            .ToDictionary(x => x!.Method, x => x!, StringComparer.Ordinal);
+    }
+
+    private static BenchmarkRunMeasurement? ReadBenchmark(JsonElement benchmark)
     {
         if (!benchmark.TryGetProperty("Method", out var methodElement))
             return null;
@@ -144,7 +246,12 @@ internal static class ComparisonBenchmarkGate
         if (method == null || !benchmark.TryGetProperty("Statistics", out var statistics))
             return null;
 
-        var mean = statistics.GetProperty("Mean").GetDouble();
+        double[] values;
+        if (statistics.TryGetProperty("OriginalValues", out var originalValues) && originalValues.ValueKind == JsonValueKind.Array)
+            values = originalValues.EnumerateArray().Select(x => x.GetDouble()).ToArray();
+        else
+            values = [statistics.GetProperty("Mean").GetDouble()];
+
         var allocatedBytes = 0d;
         if (
             benchmark.TryGetProperty("Memory", out var memory)
@@ -156,7 +263,37 @@ internal static class ComparisonBenchmarkGate
             allocatedBytes = allocated.GetDouble();
         }
 
-        return new BenchmarkMeasurement(method, mean, allocatedBytes);
+        return new BenchmarkRunMeasurement(method, values, allocatedBytes);
+    }
+
+    private static double Median(IReadOnlyCollection<double> values)
+    {
+        var ordered = values.Order().ToArray();
+        var midpoint = ordered.Length / 2;
+        return ordered.Length % 2 == 0 ? (ordered[midpoint - 1] + ordered[midpoint]) / 2 : ordered[midpoint];
+    }
+
+    private static double DifferenceUpperConfidenceBound(
+        IReadOnlyCollection<double> mapperlyValues,
+        IReadOnlyCollection<double> domainMapValues,
+        double zScore
+    )
+    {
+        var mapperlyMean = mapperlyValues.Average();
+        var domainMapMean = domainMapValues.Average();
+        var standardError = Math.Sqrt(
+            SampleVariance(mapperlyValues) / mapperlyValues.Count + SampleVariance(domainMapValues) / domainMapValues.Count
+        );
+        return domainMapMean - mapperlyMean + zScore * standardError;
+    }
+
+    private static double SampleVariance(IReadOnlyCollection<double> values)
+    {
+        if (values.Count < 2)
+            return 0;
+
+        var mean = values.Average();
+        return values.Sum(x => Math.Pow(x - mean, 2)) / (values.Count - 1);
     }
 
     private static string BuildMarkdown(ComparisonGateResult result, ComparisonGateOptions options)
@@ -165,15 +302,23 @@ internal static class ComparisonBenchmarkGate
         markdown.AppendLine("# DomainMap versus Mapperly performance gate");
         markdown.AppendLine();
         markdown.AppendLine(
-            $"Limits: mean time <= {options.MaxTimeRatio:F2}x Mapperly + {options.TimeSlackNanoseconds:F2} ns; allocated bytes <= {options.MaxAllocationRatio:F2}x Mapperly + {options.AllocationSlackBytes:F0} B."
+            $"Regression limits: median time <= {options.MaxTimeRatio:F2}x Mapperly + {options.TimeSlackNanoseconds:F2} ns; "
+                + $"allocated bytes in every run <= {options.MaxAllocationRatio:F2}x Mapperly + {options.AllocationSlackBytes:F0} B."
         );
         markdown.AppendLine();
-        markdown.AppendLine("| Scenario | Mapperly mean | DomainMap mean | Time ratio | Mapperly alloc | DomainMap alloc | Result |");
-        markdown.AppendLine("| --- | ---: | ---: | ---: | ---: | ---: | :---: |");
+        markdown.AppendLine(
+            "| Scenario | Expectation | Mapperly median | DomainMap median | Time ratio | Upper difference bound | Reports / samples | Allocation | Result |"
+        );
+        markdown.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |");
         foreach (var comparison in result.Comparisons)
         {
             markdown.AppendLine(
-                $"| {comparison.Scenario} | {comparison.MapperlyMeanNanoseconds:F3} ns | {comparison.DomainMapMeanNanoseconds:F3} ns | {comparison.TimeRatio:F3}x | {comparison.MapperlyAllocatedBytes:F0} B | {comparison.DomainMapAllocatedBytes:F0} B | {(comparison.Passed ? "PASS" : "FAIL")} |"
+                $"| {comparison.Scenario} | {comparison.Expectation} | {comparison.MapperlyMedianNanoseconds:F3} ns | "
+                    + $"{comparison.DomainMapMedianNanoseconds:F3} ns | {comparison.TimeRatio:F3}x | "
+                    + $"{comparison.UpperDifferenceConfidenceBoundNanoseconds:F3} ns | "
+                    + $"{comparison.ReportCount} / {comparison.MapperlySampleCount}:{comparison.DomainMapSampleCount} | "
+                    + $"{comparison.MapperlyAllocatedBytes:F0} B / {comparison.DomainMapAllocatedBytes:F0} B | "
+                    + $"{(comparison.Passed ? "PASS" : "FAIL")} |"
             );
             if (comparison.Failure != null)
                 markdown.AppendLine($"\n- {comparison.Scenario}: {comparison.Failure}");
@@ -189,5 +334,5 @@ internal static class ComparisonBenchmarkGate
         return markdown.ToString();
     }
 
-    private sealed record BenchmarkMeasurement(string Method, double MeanNanoseconds, double AllocatedBytes);
+    private sealed record BenchmarkRunMeasurement(string Method, double[] Values, double AllocatedBytes);
 }

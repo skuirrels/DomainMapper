@@ -8,8 +8,9 @@ public partial class Mapper
     {
         if (source == null)
             return;
-        foreach (var item in source)
+        for (var i = 0; i < source.Count; i++)
         {
+            var item = source[i];
             target.Add(MapToB(item));
         }
     }

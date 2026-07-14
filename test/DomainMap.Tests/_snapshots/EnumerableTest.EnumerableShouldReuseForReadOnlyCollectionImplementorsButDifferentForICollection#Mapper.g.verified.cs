@@ -41,14 +41,14 @@ public partial class Mapper
     [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
     public partial global::BReadOnlyCollection Map(global::AReadOnlyCollection source)
     {
-        var target = new global::BReadOnlyCollection(MapToDArray(source.Values));
+        var target = new global::BReadOnlyCollection(MapToDArray1(source.Values));
         return target;
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
     public partial global::BCustomCollection Map(global::ACustomReadOnlyCollection source)
     {
-        var target = new global::BCustomCollection(MapToCustomCollectionOfD(source.Values));
+        var target = new global::BCustomCollection(MapToCustomCollectionOfD1(source.Values));
         return target;
     }
 
@@ -62,7 +62,7 @@ public partial class Mapper
     [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
     public partial global::BCustomCollection Map(global::ACustomCollection source)
     {
-        var target = new global::BCustomCollection(MapToCustomCollectionOfD1(source.Values));
+        var target = new global::BCustomCollection(MapToCustomCollectionOfD2(source.Values));
         return target;
     }
 
@@ -74,18 +74,19 @@ public partial class Mapper
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
-    private global::System.Collections.Generic.List<global::D> MapToListOfD(global::System.Collections.Generic.IReadOnlyCollection<global::C> source)
+    private global::System.Collections.Generic.List<global::D> MapToListOfD(global::System.Collections.Generic.List<global::C> source)
     {
         var target = new global::System.Collections.Generic.List<global::D>(source.Count);
-        foreach (var item in source)
+        for (var i = 0; i < source.Count; i++)
         {
+            var item = source[i];
             target.Add(MapToD(item));
         }
         return target;
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
-    private global::D[] MapToDArray(global::System.Collections.Generic.IReadOnlyCollection<global::C> source)
+    private global::D[] MapToDArray(global::System.Collections.Generic.List<global::C> source)
     {
         var target = new global::D[source.Count];
         var i = 0;
@@ -98,7 +99,32 @@ public partial class Mapper
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
-    private global::CustomCollection<global::D> MapToCustomCollectionOfD(global::System.Collections.Generic.IReadOnlyCollection<global::C> source)
+    private global::CustomCollection<global::D> MapToCustomCollectionOfD(global::System.Collections.Generic.List<global::C> source)
+    {
+        var target = new global::CustomCollection<global::D>();
+        for (var i = 0; i < source.Count; i++)
+        {
+            var item = source[i];
+            target.Add(MapToD(item));
+        }
+        return target;
+    }
+
+    [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+    private global::D[] MapToDArray1(global::System.Collections.Generic.IReadOnlyCollection<global::C> source)
+    {
+        var target = new global::D[source.Count];
+        var i = 0;
+        foreach (var item in source)
+        {
+            target[i] = MapToD(item);
+            i++;
+        }
+        return target;
+    }
+
+    [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+    private global::CustomCollection<global::D> MapToCustomCollectionOfD1(global::System.Collections.Generic.IReadOnlyCollection<global::C> source)
     {
         var target = new global::CustomCollection<global::D>();
         foreach (var item in source)
@@ -120,7 +146,7 @@ public partial class Mapper
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
-    private global::CustomCollection<global::D> MapToCustomCollectionOfD1(global::System.Collections.Generic.ICollection<global::C> source)
+    private global::CustomCollection<global::D> MapToCustomCollectionOfD2(global::System.Collections.Generic.ICollection<global::C> source)
     {
         var target = new global::CustomCollection<global::D>();
         foreach (var item in source)

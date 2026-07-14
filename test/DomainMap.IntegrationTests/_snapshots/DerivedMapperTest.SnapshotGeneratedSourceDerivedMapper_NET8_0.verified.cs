@@ -5,6 +5,7 @@ namespace DomainMap.IntegrationTests.Mapper
     public partial class DerivedMapper
     {
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public override partial long IntToLong(int value)
         {
             return (long)value;

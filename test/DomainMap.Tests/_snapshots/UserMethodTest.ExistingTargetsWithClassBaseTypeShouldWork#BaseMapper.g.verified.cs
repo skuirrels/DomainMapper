@@ -7,8 +7,9 @@ public partial class BaseMapper
     protected partial void MyIntToDoubleMapping(global::System.Collections.Generic.List<int> src, global::System.Collections.Generic.List<double> dst)
     {
         dst.EnsureCapacity(src.Count + dst.Count);
-        foreach (var item in src)
+        for (var i = 0; i < src.Count; i++)
         {
+            var item = src[i];
             dst.Add((double)item);
         }
     }

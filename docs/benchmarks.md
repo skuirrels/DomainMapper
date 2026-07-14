@@ -20,36 +20,40 @@ Existing-target benchmarks return the mutated target to BenchmarkDotNet. This ma
 
 ## Current verification result
 
-Captured on 14 July 2026 using .NET SDK 10.0.300 and .NET 10.0.8 on an Arm64 Apple M4 Pro. These are local observations, not a general performance claim.
+Captured on 14 July 2026 using .NET SDK 10.0.300 and .NET 10.0.8 on an Arm64 Apple M4 Pro. The result combines two complete `ShortRun` matrices with opposite Mapperly-first and DomainMap-first execution orders, giving six raw iteration samples per implementation and scenario. These are local observations, not a general performance claim.
 
-| Runtime scenario     | DomainMap |  Mapperly | DomainMap ratio |    Allocation |
-| -------------------- | --------: | --------: | --------------: | ------------: |
-| Domain factory       |  4.345 ns |  4.621 ns |            0.94 |   64 B / 64 B |
-| Existing target      |  0.746 ns |  0.731 ns |            1.02 |     0 B / 0 B |
-| Flat object          |  4.205 ns |  3.878 ns |            1.08 |   64 B / 64 B |
-| Nested collection    | 29.904 ns | 29.338 ns |            1.02 | 288 B / 288 B |
-| Value-object factory |  2.045 ns |  2.028 ns |            1.01 |   24 B / 24 B |
+| Runtime scenario     | Mapperly median | DomainMap median | Ratio | Upper difference bound |    Allocation | Gate classification |
+| -------------------- | --------------: | ---------------: | ----: | ---------------------: | ------------: | ------------------- |
+| Domain factory       |        4.386 ns |         4.757 ns | 1.085 |               0.844 ns |   64 B / 64 B | Proven code parity  |
+| Existing target      |        0.793 ns |         0.740 ns | 0.934 |              -0.034 ns |     0 B / 0 B | Faster              |
+| Flat object          |        4.129 ns |         3.775 ns | 0.914 |              -0.250 ns |   64 B / 64 B | Faster              |
+| Nested collection    |       30.139 ns |        28.608 ns | 0.949 |              -0.920 ns | 288 B / 288 B | Faster              |
+| Value-object factory |        2.117 ns |         2.084 ns | 0.984 |               0.032 ns |   24 B / 24 B | Proven code parity  |
 
-The generated runtime code has the same shape in the non-factory scenarios, and the DDD-facing API does not introduce a runtime abstraction layer. Small sub-nanosecond differences should not be treated as meaningful without repeated runs on dedicated hardware.
+The strict combined gate passed. Every differentiated generated path has both a lower median and a negative one-sided 95% upper confidence bound for DomainMap minus Mapperly. Allocation is equal in every scenario and in both execution orders.
 
-The flat DomainMap and Mapperly methods compile to the same 56-byte IL body. After moving the paired runtime benchmarks out of process, two focused 20-iteration runs measured DomainMap versus Mapperly at **4.022 ns versus 4.284 ns**, then **4.057 ns versus 4.041 ns**, with 64 B allocated by both. The repeat resolves to a `1.00x` ratio and confirms that apparent single-run flat-mapping leads are measurement variance rather than different generated work.
+The flat and existing-target improvements come from applying `AggressiveInlining` only to small, invocation-free leaf mappings. The nested-collection improvement comes from preserving a concrete `List<T>` source and generating an indexed loop with a local element variable. The local variable retains the previous null-element exception behavior while avoiding enumerator overhead.
 
-### Cleaner API confirmation
+The domain-factory and value-object-factory paths normalize to matching SHA-256 fingerprints after trivial local factory wrappers are inlined. Their raw sub-nanosecond timing differences are therefore treated as execution noise rather than as different mapping work. The parity fingerprint retains performance-affecting attributes, so the inlined leaf mappings are correctly classified as differentiated paths.
 
-After switching the DomainMap aggregate benchmark to `[MapToFactory(nameof(BenchmarkAggregate.Create))]`, a focused 20-iteration run measured DomainMap at **4.428 ns and 64 B** versus Mapperly at **4.759 ns and 64 B** (`0.93x`). The cleaner declaration therefore adds no runtime wrapper or allocation; it generates the same direct factory call shape. As with the wider results above, this sub-nanosecond lead is a local observation rather than a general performance claim.
+The cleaner `[MapToFactory(nameof(BenchmarkAggregate.Create))]` declaration continues to generate a direct factory call without a runtime wrapper or extra allocation.
 
 The isolated cold source-generation run measured DomainMap at 2.110 ms and 1,701,692 B versus Mapperly at 1.927 ms and 1,538,005 B: `1.095x` time and `1.11x` allocation. This is within the `1.25x` time and `1.20x` generator-allocation gates but remains an optimization target.
 
 ## Reproduce
 
 ```bash
+DOMAINMAP_BENCHMARK_ORDER=mapperly-first \
+DOMAINMAP_BENCHMARK_ARTIFACTS=/tmp/domainmap-mapperly-first \
 dotnet run -c Release \
   --project benchmarks/DomainMap.Benchmarks/DomainMap.Benchmarks.csproj \
-  -- --filter '*ComparisonMappingBenchmarks*'
+  -- --exporters json --job Short --filter '*ComparisonMappingBenchmarks*'
 
+DOMAINMAP_BENCHMARK_ORDER=domainmap-first \
+DOMAINMAP_BENCHMARK_ARTIFACTS=/tmp/domainmap-domainmap-first \
 dotnet run -c Release \
   --project benchmarks/DomainMap.Benchmarks/DomainMap.Benchmarks.csproj \
-  -- --filter '*SourceGeneratorBenchmarks*'
+  -- --exporters json --job Short --filter '*ComparisonMappingBenchmarks*'
 ```
 
 BenchmarkDotNet writes CSV, Markdown, and HTML reports under `artifacts/results`.
@@ -59,9 +63,11 @@ BenchmarkDotNet writes CSV, Markdown, and HTML reports under `artifacts/results`
 The benchmark workflow applies two complementary gates:
 
 - historical results fail when mean execution time exceeds the retained main-branch baseline by more than `1.25x`;
-- paired `ComparisonMappingBenchmarks` fail when DomainMap exceeds Mapperly by more than `1.25x` mean time plus a 1 ns absolute timing allowance, or `1.10x` allocated bytes plus a 64-byte noise allowance.
+- paired `ComparisonMappingBenchmarks` run in both implementation orders and aggregate BenchmarkDotNet's raw iteration samples by median;
+- scenarios with matching generated-code fingerprints are accepted as proven code parity, while every differentiated scenario must have a lower DomainMap median and a negative one-sided 95% upper confidence bound for DomainMap minus Mapperly;
+- every runtime comparison run requires DomainMap allocated bytes to be equal to or lower than Mapperly, with no ratio or byte allowance;
 - paired `SourceGeneratorBenchmarks` fail when DomainMap exceeds Mapperly by more than `1.25x` mean time or `1.20x` allocated bytes.
 
 The paired gate writes `DomainMap-vs-Mapperly-gate.md` and `DomainMap-vs-Mapperly-gate.json` beside the BenchmarkDotNet output. Raw and derived benchmark artifacts are retained by GitHub Actions for 90 days. Main-branch baselines use immutable, run-specific cache keys with a prefix restore, so no personal access token is required to replace a cache.
 
-The timing allowance prevents sub-nanosecond jitter from becoming a large percentage regression for very small mappings; the relative threshold remains the primary guard as workloads grow. These thresholds are regression tripwires, not proof of general performance superiority. GitHub-hosted runners are shared hardware; investigate a failure with repeated runs on stable hardware before changing the limit.
+Generated-code parity prevents sub-nanosecond jitter from deciding a winner when both tools emit the same effective work. Differentiated paths have no timing slack: they must demonstrate a statistical win. These gates are regression tripwires, not proof of general performance superiority. GitHub-hosted runners are shared hardware; investigate a failure with repeated balanced runs on stable hardware before changing the policy.

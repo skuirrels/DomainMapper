@@ -7,8 +7,9 @@ public partial class Mapper
     partial void Map(global::A source, global::B dest)
     {
         dest.GetValue().EnsureCapacity(source.GetValue().Count + dest.GetValue().Count);
-        foreach (var item in source.GetValue())
+        for (var i = 0; i < source.GetValue().Count; i++)
         {
+            var item = source.GetValue()[i];
             dest.GetValue().Add(item);
         }
     }
