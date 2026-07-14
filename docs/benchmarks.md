@@ -30,6 +30,10 @@ Captured on 14 July 2026 using .NET SDK 10.0.300 and .NET 10.0.8 on an Arm64 App
 
 The generated runtime code has the same shape in the non-factory scenarios, and the DDD-facing API does not introduce a runtime abstraction layer. Small sub-nanosecond differences should not be treated as meaningful without repeated runs on dedicated hardware.
 
+### Cleaner API confirmation
+
+After switching the DomainMap aggregate benchmark to `[MapToFactory(nameof(BenchmarkAggregate.Create))]`, a focused 20-iteration run measured DomainMap at **4.429 ns and 64 B** versus Mapperly at **4.917 ns and 64 B** (`0.90x`). The cleaner declaration therefore adds no runtime wrapper or allocation; it generates the same direct factory call shape. As with the wider results above, this sub-nanosecond lead is a local observation rather than a general performance claim.
+
 The isolated cold source-generation run measured DomainMap at 2.037 ms and 1,657,730 B versus Mapperly at 1.712 ms and 1,510,314 B: `1.19x` time and `1.10x` allocation. An immediately preceding isolated run measured a `1.16x` time ratio and the same `1.10x` allocation ratio. This is within the parity gate but remains an optimization target.
 
 ## Reproduce

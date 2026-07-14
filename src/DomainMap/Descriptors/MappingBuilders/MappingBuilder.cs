@@ -16,6 +16,7 @@ public class MappingBuilder(MappingCollection mappings, MapperDeclaration mapper
         CtorMappingBuilder.TryBuildNullableMapping,
         NullableMappingBuilder.TryBuildMapping,
         DerivedTypeMappingBuilder.TryBuildMapping,
+        ConfiguredDomainFactoryMappingBuilder.TryBuildMapping,
         ToObjectMappingBuilder.TryBuildMapping,
         DirectAssignmentMappingBuilder.TryBuildMapping,
         QueryableMappingBuilder.TryBuildMapping,

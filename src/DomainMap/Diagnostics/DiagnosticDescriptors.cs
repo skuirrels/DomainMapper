@@ -25,6 +25,16 @@ public static class DiagnosticDescriptors
         helpLinkUri: BuildHelpUri("DMAP002")
     );
 
+    public static readonly DiagnosticDescriptor ConfiguredDomainFactoryNotFound = new(
+        "DMAP003",
+        "Configured domain factory was not found",
+        "The configured domain factory {0}.{1} was not found or has an invalid signature. It must be an accessible, non-generic static method returning {0}.",
+        DiagnosticCategories.DomainBoundary,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: BuildHelpUri("DMAP003")
+    );
+
     public static readonly DiagnosticDescriptor UnsupportedMappingMethodSignature = new(
         "RMG001",
         "Has an unsupported mapping method signature",

@@ -26,12 +26,21 @@ public static class InlineExpressionMappingBuilder
     )
     {
         var userMapping = ctx.FindMapping(new TypeMappingKey(sourceType, targetType), ctx.ParameterScope) as IUserMapping;
-        if (userMapping != null && ctx.SymbolAccessor.HasAttribute<DomainFactoryAttribute>(userMapping.Method))
+        if (
+            userMapping != null
+            && (
+                ctx.SymbolAccessor.HasAttribute<DomainFactoryAttribute>(userMapping.Method)
+                || ctx.SymbolAccessor.HasAttribute<MapToFactoryAttribute>(userMapping.Method)
+            )
+        )
         {
+            var factoryName =
+                ctx.AttributeAccessor.AccessFirstOrDefault<MapToFactoryAttribute>(userMapping.Method)?.FactoryMethodName
+                ?? userMapping.Method.Name;
             ctx.ReportDiagnosticAtSymbol(
                 DiagnosticDescriptors.DomainFactoryCannotBeUsedInProjection,
                 userMapping.Method,
-                userMapping.Method.Name,
+                factoryName,
                 targetType
             );
             return new NewInstanceObjectMemberMapping(sourceType, targetType.NonNullable())

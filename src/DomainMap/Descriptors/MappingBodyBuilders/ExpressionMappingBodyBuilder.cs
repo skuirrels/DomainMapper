@@ -1,3 +1,4 @@
+using DomainMap.Abstractions;
 using DomainMap.Descriptors.MappingBuilders;
 using DomainMap.Descriptors.Mappings;
 using DomainMap.Descriptors.Mappings.UserMappings;
@@ -15,6 +16,17 @@ public static class ExpressionMappingBodyBuilder
         // For Expression mappings, the source and target types come from Expression<Func<TSource, TTarget>>
         var sourceType = mapping.ExpressionSourceType;
         var targetType = mapping.ExpressionTargetType;
+
+        if (ctx.AttributeAccessor.AccessFirstOrDefault<MapToFactoryAttribute>(mapping.Method) is { } factoryConfiguration)
+        {
+            ctx.ReportDiagnosticAtSymbol(
+                DiagnosticDescriptors.DomainFactoryCannotBeUsedInProjection,
+                mapping.Method,
+                factoryConfiguration.FactoryMethodName,
+                targetType
+            );
+            return;
+        }
 
         var delegateMapping = InlineExpressionMappingBuilder.TryBuildInlineMappingForExpression(ctx, sourceType, targetType);
         if (delegateMapping != null)

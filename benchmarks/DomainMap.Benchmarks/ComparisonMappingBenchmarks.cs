@@ -94,10 +94,7 @@ public static partial class DomainMapBenchmarkMapper
     [DomainFactory(Input = DomainFactoryInput.Source)]
     private static BenchmarkAggregateId ToAggregateId(int value) => new(value);
 
-    [DomainFactory]
-    private static BenchmarkAggregate Create(BenchmarkAggregateId id, string name, decimal amount, DateTimeOffset createdAt) =>
-        BenchmarkAggregate.Create(id, name, amount, createdAt);
-
+    [MapToFactory(nameof(BenchmarkAggregate.Create))]
     public static partial BenchmarkAggregate Place(BenchmarkFlatSource source);
 
     public static partial BenchmarkIdTarget MapId(BenchmarkIdSource source);

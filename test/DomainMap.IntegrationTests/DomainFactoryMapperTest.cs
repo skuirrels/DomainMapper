@@ -20,6 +20,16 @@ namespace DomainMap.IntegrationTests
         }
 
         [Fact]
+        public void MapsAggregateBackToDtoWithoutBoundaryAdapters()
+        {
+            var command = new PlaceOrder(Guid.NewGuid(), "Ada Lovelace", 42.50m);
+
+            var dto = OrderDomainMap.ToDto(OrderDomainMap.Map(command));
+
+            dto.ShouldBe(new OrderDto(command.Id, command.CustomerName, command.Total));
+        }
+
+        [Fact]
         public void DoesNotBypassFactoryValidation()
         {
             var command = new PlaceOrder(Guid.NewGuid(), "Ada Lovelace", -1m);
@@ -83,6 +93,8 @@ namespace DomainMap.IntegrationTests
 
     public sealed record PlaceOrder(Guid Id, string CustomerName, decimal Total);
 
+    public sealed record OrderDto(Guid Id, string CustomerName, decimal Total);
+
     public sealed record RenameOrder(string CustomerName);
 
     public sealed record OrderId
@@ -101,6 +113,8 @@ namespace DomainMap.IntegrationTests
 
             return new OrderId(value);
         }
+
+        public static implicit operator Guid(OrderId value) => value.Value;
     }
 
     public sealed record CustomerName
@@ -119,6 +133,8 @@ namespace DomainMap.IntegrationTests
 
             return new CustomerName(value);
         }
+
+        public static implicit operator string(CustomerName value) => value.Value;
     }
 
     public sealed record OrderTotal
@@ -137,6 +153,8 @@ namespace DomainMap.IntegrationTests
 
             return new OrderTotal(value);
         }
+
+        public static implicit operator decimal(OrderTotal value) => value.Value;
     }
 
     public sealed class Order
@@ -183,9 +201,6 @@ namespace DomainMap.IntegrationTests
     public static partial class OrderDomainMap
     {
         [DomainFactory]
-        private static Order Create(OrderId id, CustomerName customerName, OrderTotal total) => Order.Place(id, customerName, total);
-
-        [DomainFactory]
         private static Order Rename(Order current, CustomerName customerName) => current.Rename(customerName);
 
         [DomainFactory]
@@ -203,19 +218,13 @@ namespace DomainMap.IntegrationTests
             }
         }
 
-        [DomainFactory(Input = DomainFactoryInput.Source)]
-        private static OrderId ToOrderId(Guid value) => OrderId.Create(value);
-
-        [DomainFactory(Input = DomainFactoryInput.Source)]
-        private static CustomerName ToCustomerName(string value) => CustomerName.Create(value);
-
-        [DomainFactory(Input = DomainFactoryInput.Source)]
-        private static OrderTotal ToOrderTotal(decimal value) => OrderTotal.Create(value);
-
+        [MapToFactory(nameof(Order.Place))]
         public static partial Order Map(PlaceOrder source);
 
         public static partial Order Rename(RenameOrder source, Order current);
 
         public static partial PlacementResult TryMap(PlaceOrder source);
+
+        public static partial OrderDto ToDto(Order source);
     }
 }

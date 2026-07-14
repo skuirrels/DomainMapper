@@ -19,26 +19,14 @@ using DomainMap.Abstractions;
 [DomainMapper]
 public static partial class OrdersMap
 {
-    [DomainFactory(Input = DomainFactoryInput.Source)]
-    private static OrderId ToOrderId(Guid value) => OrderId.Create(value);
+    [MapToFactory(nameof(Order.Place))]
+    public static partial Order ToDomain(this PlaceOrder command);
 
-    [DomainFactory(Input = DomainFactoryInput.Source)]
-    private static CustomerName ToCustomerName(string value)
-        => CustomerName.Create(value);
-
-    [DomainFactory(Input = DomainFactoryInput.Source)]
-    private static Money ToMoney(decimal value) => Money.Gbp(value);
-
-    [DomainFactory]
-    private static Order Create(OrderId id, CustomerName customerName, Money total)
-        => Order.Place(id, customerName, total);
-
-    public static partial Order ToDomain(PlaceOrder command);
-    public static partial OrderView ToView(Order order);
+    public static partial OrderDto ToDto(this Order order);
 }
 ```
 
-`[DomainFactory]` binds source members to an aggregate factory by name. `DomainFactoryInput.Source` passes one complete source value to a strongly typed ID or value-object factory. These are required boundaries: an unsatisfied factory produces a compile-time error instead of falling back to property assignment.
+`[MapToFactory]` binds source members directly to a target-owned aggregate factory. Conventional one-argument `Create` methods construct strongly typed IDs and value objects automatically. These are required boundaries: an unsatisfied factory produces a compile-time error instead of falling back to property assignment.
 
 ## Design principles
 

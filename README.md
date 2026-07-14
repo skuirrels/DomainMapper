@@ -14,52 +14,35 @@ using DomainMap.Abstractions;
 [DomainMapper]
 public static partial class OrdersMap
 {
-    [DomainFactory(Input = DomainFactoryInput.Source)]
-    private static OrderId ToOrderId(Guid value) => OrderId.Create(value);
+    [MapToFactory(nameof(Order.Place))]
+    public static partial Order ToDomain(this PlaceOrder command);
 
-    [DomainFactory(Input = DomainFactoryInput.Source)]
-    private static CustomerName ToCustomerName(string value)
-        => CustomerName.Create(value);
-
-    [DomainFactory(Input = DomainFactoryInput.Source)]
-    private static Money ToMoney(decimal value) => Money.Gbp(value);
-
-    [DomainFactory]
-    private static Order Create(
-        OrderId id,
-        CustomerName customerName,
-        Money total)
-        => Order.Place(id, customerName, total);
-
-    [DomainFactory]
-    private static Order Rename(Order current, CustomerName customerName)
-        => current.Rename(customerName);
-
-    public static partial Order ToDomain(PlaceOrder command);
-    public static partial Order Rename(RenameOrder command, Order current);
-    public static partial OrderView ToView(Order order);
+    public static partial OrderDto ToDto(this Order order);
 }
 ```
 
 The generated construction path is intentionally boring and inspectable:
 
 ```csharp
-var target = Create(
-    ToOrderId(source.Id),
-    ToCustomerName(source.CustomerName),
-    ToMoney(source.Total));
+var target = Order.Place(
+    OrderId.Create(source.Id),
+    CustomerName.Create(source.CustomerName),
+    Money.Create(source.Total));
 return target;
 ```
 
-`[DomainFactory]` is the DDD-focused difference. `Input.Members` binds command members to a factory by name; `Input.Source` sends one complete value into a strongly typed ID or value-object factory. The factory is a required boundary: if DomainMap cannot satisfy it, compilation fails instead of silently choosing a public constructor or assigning properties.
+`[MapToFactory]` names the target-owned aggregate factory directly. DomainMap binds command members to its parameters and applies normal conversions, including conventional one-argument value-object factories such as `OrderId.Create(Guid)`. The factory is a required boundary: if DomainMap cannot satisfy it, compilation fails instead of silently choosing a public constructor or assigning properties.
+
+For outbound DTO mapping, value objects can expose safe implicit conversions or conventional `ToX` methods. Use `[DomainFactory]` for advanced mapper-owned boundaries such as immutable updates, whole-source factories, or application result contracts.
 
 ## Design boundary
 
 DomainMap owns data movement. Your domain owns behavior.
 
 - Use generated mappings for commands, integration contracts, persistence models, read models, and projections.
-- Use `[DomainFactory]` to enter an aggregate through a constructor or named factory.
-- Use `DomainFactoryInput.Source` for strongly typed IDs and value objects.
+- Use `[MapToFactory(nameof(Aggregate.Create))]` as the concise default for entering an aggregate through a target-owned static factory.
+- Let conventional `Create(TValue)` methods construct strongly typed IDs and value objects.
+- Use `[DomainFactory]` when the boundary is mapper-owned or needs the whole source value.
 - Pass the current aggregate as an additional mapping parameter when an immutable update delegates to domain behavior. DomainMap will not guess that `Status = Shipped` means `order.Ship()`.
 - Keep expected business failures explicit in your own result type; DomainMap does not introduce a runtime result abstraction.
 - Project persistence entities to read models. Domain factories are deliberately rejected inside `IQueryable` projections.

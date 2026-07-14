@@ -6,6 +6,7 @@ using DomainMap.Descriptors.Mappings;
 using DomainMap.Descriptors.Mappings.MemberMappings;
 using DomainMap.Descriptors.ObjectFactories;
 using DomainMap.Diagnostics;
+using DomainMap.Helpers;
 using DomainMap.Symbols.Members;
 using Microsoft.CodeAnalysis;
 
@@ -125,6 +126,9 @@ public static class NewInstanceObjectMemberMappingBodyBuilder
     )
     {
         parameterMappings = [];
+        if (TryBuildConfiguredDomainFactoryMapping(ctx, out parameterMappings))
+            return true;
+
         var objectFactoryConstructors = ctx
             .BuilderContext.InstanceConstructors.BuildForObjectFactories(ctx.Mapping.SourceType, ctx.Mapping.TargetType)
             .ToArray();
@@ -179,6 +183,109 @@ public static class NewInstanceObjectMemberMappingBodyBuilder
 
         ctx.Mapping.Constructor = new UnimplementedInstanceConstructor(ctx.Mapping.TargetType);
         return true;
+    }
+
+    private static bool TryBuildConfiguredDomainFactoryMapping(
+        INewInstanceBuilderContext<INewInstanceObjectMemberMapping> ctx,
+        out IReadOnlyList<ConstructorParameterMapping> parameterMappings
+    )
+    {
+        parameterMappings = [];
+        var mappingMethod = ctx.BuilderContext.UserSymbol;
+        if (mappingMethod == null)
+            return false;
+
+        var configuration = ctx.BuilderContext.AttributeAccessor.AccessFirstOrDefault<MapToFactoryAttribute>(mappingMethod);
+        if (configuration == null)
+            return false;
+
+        var factoryName = configuration.FactoryMethodName;
+        var targetType = ctx.Mapping.TargetType.NonNullable();
+        var factoryMethods = string.IsNullOrWhiteSpace(factoryName)
+            ? []
+            : ctx
+                .BuilderContext.SymbolAccessor.GetAllMethods(targetType)
+                .Where(method => IsValidConfiguredDomainFactory(ctx.BuilderContext, method, targetType, factoryName))
+                .ToArray();
+
+        if (factoryMethods.Length == 0)
+        {
+            ctx.BuilderContext.ReportDiagnosticAtSymbol(
+                DiagnosticDescriptors.ConfiguredDomainFactoryNotFound,
+                mappingMethod,
+                targetType,
+                string.IsNullOrWhiteSpace(factoryName) ? "<empty>" : factoryName
+            );
+            ctx.Mapping.Constructor = new UnimplementedInstanceConstructor(ctx.Mapping.TargetType);
+            return true;
+        }
+
+        if (ctx.BuilderContext.IsExpression)
+        {
+            ctx.BuilderContext.ReportDiagnosticAtSymbol(
+                DiagnosticDescriptors.DomainFactoryCannotBeUsedInProjection,
+                mappingMethod,
+                factoryName,
+                targetType
+            );
+            ctx.Mapping.Constructor = new UnimplementedInstanceConstructor(ctx.Mapping.TargetType);
+            return true;
+        }
+
+        var unsatisfiedFactories = new List<(IMethodSymbol Factory, IReadOnlyList<string> Parameters)>();
+        foreach (var factoryMethod in factoryMethods)
+        {
+            var factory = new TargetStaticParameterObjectFactory(ctx.BuilderContext.SymbolAccessor, factoryMethod);
+            var constructor = ctx.BuilderContext.InstanceConstructors.BuildForObjectFactory(
+                factory,
+                ctx.Mapping.SourceType,
+                ctx.Mapping.TargetType
+            );
+            if (TryBuildConstructorMapping(ctx, constructor, out var candidateParameterMappings, out var unsatisfiedParameters))
+            {
+                ctx.Mapping.Constructor = constructor;
+                parameterMappings = candidateParameterMappings;
+                return true;
+            }
+
+            unsatisfiedFactories.Add((factoryMethod, unsatisfiedParameters));
+        }
+
+        foreach (var (factory, parameters) in unsatisfiedFactories)
+        {
+            ctx.BuilderContext.ReportDiagnosticAtSymbol(
+                DiagnosticDescriptors.DomainFactoryCannotBeSatisfied,
+                mappingMethod,
+                factory.Name,
+                targetType,
+                ctx.Mapping.SourceType,
+                string.Join(", ", parameters)
+            );
+        }
+
+        ctx.Mapping.Constructor = new UnimplementedInstanceConstructor(ctx.Mapping.TargetType);
+        return true;
+    }
+
+    private static bool IsValidConfiguredDomainFactory(
+        MappingBuilderContext ctx,
+        IMethodSymbol method,
+        ITypeSymbol targetType,
+        string factoryName
+    )
+    {
+        return string.Equals(method.Name, factoryName, StringComparison.Ordinal)
+            && method.MethodKind == MethodKind.Ordinary
+            && method.IsStatic
+            && !method.IsAsync
+            && !method.IsGenericMethod
+            && !method.IsPartialDefinition
+            && !method.ReturnsVoid
+            && !method.ReturnsByRef
+            && !method.ReturnsByRefReadonly
+            && method.Parameters.All(parameter => parameter.RefKind is RefKind.None or RefKind.In)
+            && SymbolEqualityComparer.Default.Equals(method.ReturnType, targetType)
+            && ctx.SymbolAccessor.IsDirectlyAccessible(method);
     }
 
     private static void ReportProjectionDomainFactory(

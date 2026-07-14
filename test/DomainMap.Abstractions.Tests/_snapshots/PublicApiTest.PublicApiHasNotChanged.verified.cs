@@ -147,6 +147,13 @@ namespace DomainMap.Abstractions
         public string TargetFullName { get; }
         public string? Use { get; set; }
     }
+    [System.AttributeUsage(System.AttributeTargets.Method)]
+    [System.Diagnostics.Conditional("DOMAINMAP_ABSTRACTIONS_SCOPE_RUNTIME")]
+    public sealed class MapToFactoryAttribute : System.Attribute
+    {
+        public MapToFactoryAttribute(string factoryMethodName) { }
+        public string FactoryMethodName { get; }
+    }
     [System.AttributeUsage(System.AttributeTargets.Method, AllowMultiple=true)]
     [System.Diagnostics.Conditional("DOMAINMAP_ABSTRACTIONS_SCOPE_RUNTIME")]
     public sealed class MapValueAttribute : System.Attribute

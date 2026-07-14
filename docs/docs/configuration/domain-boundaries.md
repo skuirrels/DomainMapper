@@ -5,43 +5,45 @@ description: Preserve aggregate and value-object invariants with required domain
 
 # Domain boundaries
 
-`DomainFactoryAttribute` marks a construction path that DomainMap must use. The generator moves data to that boundary; the method remains ordinary user-owned C# and delegates to your domain model.
+`MapToFactoryAttribute` selects a target-owned static factory that DomainMap must use. The generator moves data to that boundary while the domain model continues to own construction and invariants.
 
 ## Enter an aggregate
 
-The default `Input.Members` mode binds source members to factory parameters by name and applies normal mapping conversions to each value.
+`MapToFactory` binds source members to factory parameters by name and applies normal mapping conversions to each value.
 
 ```csharp
 [DomainMapper]
 public static partial class OrdersMap
 {
-    [DomainFactory]
-    private static Order Create(
-        OrderId id,
-        CustomerName customerName,
-        OrderTotal total)
-        => Order.Place(id, customerName, total);
+    [MapToFactory(nameof(Order.Place))]
+    public static partial Order Map(this PlaceOrder source);
 
-    public static partial Order Map(PlaceOrder source);
+    public static partial OrderDto ToDto(this Order source);
 }
 ```
 
-The factory owns the complete target. DomainMap does not append an object initializer or mutate members after it returns.
+Given `Order.Place(OrderId id, CustomerName customerName, OrderTotal total)`, DomainMap maps the command members to those parameters. The factory owns the complete target; DomainMap does not append an object initializer or mutate members after it returns. If a nullable factory unexpectedly returns `null`, DomainMap throws instead of constructing a fallback object.
 
 ## Construct a strongly typed value
 
-Use `Input.Source` when the complete source value should be passed to a one-parameter factory.
+DomainMap already recognizes conventional one-argument static conversion methods such as `Create`, `CreateFrom`, and `From`. No mapper adapters are required for the common value-object shape:
 
 ```csharp
-[DomainFactory(Input = DomainFactoryInput.Source)]
-private static OrderId ToOrderId(Guid value) => OrderId.Create(value);
-
-[DomainFactory(Input = DomainFactoryInput.Source)]
-private static CustomerName ToCustomerName(string value)
-    => CustomerName.Create(value);
+public static OrderId Create(Guid value);
+public static CustomerName Create(string value);
+public static OrderTotal Create(decimal value);
 ```
 
-This makes validation visible in the mapping API and reusable when the value appears inside an aggregate mapping.
+The generated aggregate call is direct and inspectable:
+
+```csharp
+return Order.Place(
+    OrderId.Create(source.Id),
+    CustomerName.Create(source.CustomerName),
+    OrderTotal.Create(source.Total));
+```
+
+For a non-conventional conversion or a factory that receives the complete source value, define a mapper method with `[DomainFactory(Input = DomainFactoryInput.Source)]`.
 
 ## Apply an immutable change
 
@@ -56,6 +58,8 @@ public static partial Order Rename(RenameOrder source, Order current);
 ```
 
 DomainMap binds `customerName` from the command and `current` from the additional parameter. It does not infer a state transition from property names.
+
+`[DomainFactory]` remains the explicit advanced API for mapper-owned boundaries. Unlike `[MapToFactory]`, it marks a method on the mapper rather than naming a static method on the target type.
 
 ## Keep failures explicit
 
@@ -84,6 +88,7 @@ public static partial PlacementResult TryMap(PlaceOrder source);
 
 - `DMAP001` is an error when a required factory cannot bind its required parameters. No constructor or property-assignment fallback is generated.
 - `DMAP002` is an error when an aggregate factory would be used inside an `IQueryable` projection. Project to a read model, then enter the domain boundary outside the query provider.
+- `DMAP003` is an error when `[MapToFactory]` cannot find an accessible, non-generic static method with the configured name that returns the target type.
 - `Input.Source` requires exactly one factory parameter.
 
 Use `[ObjectFactory(MapToParameters = true)]` instead when construction is an optional infrastructure customization and ordinary construction is an acceptable fallback.
