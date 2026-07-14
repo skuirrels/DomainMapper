@@ -33,6 +33,7 @@ permissions:
 env:
   BENCHMARKS_PATH: 'benchmarks/DomainMap.Benchmarks'
   BENCHMARK_RESULT_DIR: 'benchmarks/DomainMap.Benchmarks/artifacts/results'
+  BENCHMARK_REVERSED_RESULT_DIR: 'benchmarks/DomainMap.Benchmarks/artifacts/domainmap-first/results'
   BENCHMARK_BASELINE_DIR: './benchmark-results'
   BENCHMARK_BASELINE_FILE: './benchmark-results/benchmark-baseline-report.json'
   DOMAINMAP_MAX_MAPPERLY_TIME_RATIO: '1.25'
@@ -96,7 +97,7 @@ jobs:
           --project ${{ env.BENCHMARKS_PATH }}/DomainMap.Benchmarks.csproj --
           --check-comparison
           ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
-          ${{ env.BENCHMARK_RESULT_DIR }}/../domainmap-first/results/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
+          ${{ env.BENCHMARK_REVERSED_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
       - name: Enforce Mapperly source-generator parity
         if: matrix.BENCHMARK_NAME == 'SourceGeneratorBenchmarks'
         env:
