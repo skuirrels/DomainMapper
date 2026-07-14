@@ -116,6 +116,8 @@ internal sealed class MembersMappingState(
 
     public void SetTargetMemberMapped(IMappableMember targetMember) => SetTargetMemberMapped(targetMember.Name);
 
+    public void SetAllSourceMembersMapped() => _unmappedSourceMemberNames.Clear();
+
     public void SetTargetMemberMapped(string targetName, bool ignoreCase = false)
     {
         _unmappedTargetMemberNames.Remove(targetName);

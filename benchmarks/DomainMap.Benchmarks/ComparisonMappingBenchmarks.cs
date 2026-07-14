@@ -1,18 +1,15 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Order;
 using DomainMap.Abstractions;
 using MapperlyFactory = Riok.Mapperly.Abstractions.ObjectFactoryAttribute;
 using MapperlyMapper = Riok.Mapperly.Abstractions.MapperAttribute;
 
 namespace DomainMap.Benchmarks;
 
-[ArtifactsPath("artifacts")]
 [MemoryDiagnoser]
 [CategoriesColumn]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-[Orderer(SummaryOrderPolicy.FastestToSlowest)]
-[InProcess]
+[Config(typeof(BalancedComparisonConfig))]
 public class ComparisonMappingBenchmarks
 {
     private readonly BenchmarkFlatSource _flat = new()
@@ -31,6 +28,7 @@ public class ComparisonMappingBenchmarks
 
     private readonly BenchmarkFlatTarget _domainMapExisting = new();
     private readonly BenchmarkFlatTarget _mapperlyExisting = new();
+    private readonly BenchmarkIdSource _idSource = new(42);
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Flat")]
@@ -50,11 +48,19 @@ public class ComparisonMappingBenchmarks
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("ExistingTarget")]
-    public void MapperlyExistingTarget() => MapperlyBenchmarkMapper.UpdateFlat(_flat, _mapperlyExisting);
+    public BenchmarkFlatTarget MapperlyExistingTarget()
+    {
+        MapperlyBenchmarkMapper.UpdateFlat(_flat, _mapperlyExisting);
+        return _mapperlyExisting;
+    }
 
     [Benchmark]
     [BenchmarkCategory("ExistingTarget")]
-    public void DomainMapExistingTarget() => DomainMapBenchmarkMapper.UpdateFlat(_flat, _domainMapExisting);
+    public BenchmarkFlatTarget DomainMapExistingTarget()
+    {
+        DomainMapBenchmarkMapper.UpdateFlat(_flat, _domainMapExisting);
+        return _domainMapExisting;
+    }
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("DomainFactory")]
@@ -63,6 +69,14 @@ public class ComparisonMappingBenchmarks
     [Benchmark]
     [BenchmarkCategory("DomainFactory")]
     public BenchmarkAggregate DomainMapDomainFactory() => DomainMapBenchmarkMapper.Place(_flat);
+
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("ValueObjectFactory")]
+    public BenchmarkIdTarget MapperlyValueObjectFactory() => MapperlyBenchmarkMapper.MapId(_idSource);
+
+    [Benchmark]
+    [BenchmarkCategory("ValueObjectFactory")]
+    public BenchmarkIdTarget DomainMapValueObjectFactory() => DomainMapBenchmarkMapper.MapId(_idSource);
 }
 
 [DomainMapper]
@@ -74,13 +88,13 @@ public static partial class DomainMapBenchmarkMapper
 
     public static partial void UpdateFlat(BenchmarkFlatSource source, BenchmarkFlatTarget target);
 
-    private static BenchmarkAggregateId ToAggregateId(int value) => new(value);
+    [DomainFactory(Input = DomainFactoryInput.Source)]
+    private static BenchmarkAggregateId ToAggregateId(int value) => new BenchmarkAggregateId(value);
 
-    [DomainFactory]
-    private static BenchmarkAggregate Create(BenchmarkAggregateId id, string name, decimal amount, DateTimeOffset createdAt) =>
-        BenchmarkAggregate.Create(id, name, amount, createdAt);
-
+    [MapToFactory(nameof(BenchmarkAggregate.Create))]
     public static partial BenchmarkAggregate Place(BenchmarkFlatSource source);
+
+    public static partial BenchmarkIdTarget MapId(BenchmarkIdSource source);
 }
 
 #pragma warning disable RMG066 // Mapperly cannot account for members consumed inside a whole-source object factory.
@@ -93,11 +107,15 @@ public static partial class MapperlyBenchmarkMapper
 
     public static partial void UpdateFlat(BenchmarkFlatSource source, BenchmarkFlatTarget target);
 
+    private static BenchmarkAggregateId ToAggregateId(int value) => new BenchmarkAggregateId(value);
+
     [MapperlyFactory]
     private static BenchmarkAggregate Create(BenchmarkFlatSource source) =>
         BenchmarkAggregate.Create(new BenchmarkAggregateId(source.Id), source.Name, source.Amount, source.CreatedAt);
 
     public static partial BenchmarkAggregate Place(BenchmarkFlatSource source);
+
+    public static partial BenchmarkIdTarget MapId(BenchmarkIdSource source);
 }
 #pragma warning restore RMG066
 
@@ -138,6 +156,10 @@ public sealed record BenchmarkLineTarget(string Sku, int Quantity, decimal UnitP
 public sealed record BenchmarkOrderSource(Guid Id, BenchmarkCustomerSource Customer, List<BenchmarkLineSource> Lines);
 
 public sealed record BenchmarkOrderTarget(Guid Id, BenchmarkCustomerTarget Customer, List<BenchmarkLineTarget> Lines);
+
+public sealed record BenchmarkIdSource(int Id);
+
+public sealed record BenchmarkIdTarget(BenchmarkAggregateId Id);
 
 public readonly record struct BenchmarkAggregateId(int Value);
 

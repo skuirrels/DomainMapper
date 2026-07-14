@@ -269,6 +269,27 @@ public class EnumerableTest
     }
 
     [Fact]
+    public void ListToListOfMappedTypesUsesConcreteIndexedLoop()
+    {
+        var source = TestSourceBuilder.Mapping("List<A>", "List<B>", "record A(int Value);", "record B(int Value);");
+
+        TestHelper
+            .GenerateMapper(source)
+            .Should()
+            .HaveMapMethodBody(
+                """
+                var target = new global::System.Collections.Generic.List<global::B>(source.Count);
+                for (var i = 0; i < source.Count; i++)
+                {
+                    var item = source[i];
+                    target.Add(MapToB(item));
+                }
+                return target;
+                """
+            );
+    }
+
+    [Fact]
     public void ListToArrayOfCastedTypes()
     {
         var source = TestSourceBuilder.Mapping("List<int>", "long[]");

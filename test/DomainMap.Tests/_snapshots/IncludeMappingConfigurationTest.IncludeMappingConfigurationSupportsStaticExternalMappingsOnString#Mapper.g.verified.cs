@@ -6,6 +6,7 @@ namespace MapperNamespace
     public partial class Mapper
     {
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         static partial global::MapperNamespace.B Map(global::MapperNamespace.A a)
         {
             var target = new global::MapperNamespace.B();

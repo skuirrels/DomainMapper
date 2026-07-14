@@ -20,6 +20,8 @@ public interface IMembersBuilderContext<out T>
 
     void SetMembersMapped(MemberMappingInfo members);
 
+    void SetAllSourceMembersMapped();
+
     void SetTargetMemberMapped(IMappableMember targetMember);
 
     void ConsumeMemberConfigs(MemberMappingInfo members);

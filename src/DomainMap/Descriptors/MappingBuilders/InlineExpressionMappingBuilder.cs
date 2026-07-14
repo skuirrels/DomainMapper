@@ -1,6 +1,9 @@
+using DomainMap.Abstractions;
+using DomainMap.Descriptors.Constructors;
 using DomainMap.Descriptors.Mappings;
 using DomainMap.Descriptors.Mappings.UserMappings;
 using DomainMap.Diagnostics;
+using DomainMap.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -23,6 +26,28 @@ public static class InlineExpressionMappingBuilder
     )
     {
         var userMapping = ctx.FindMapping(new TypeMappingKey(sourceType, targetType), ctx.ParameterScope) as IUserMapping;
+        var configuredFactory =
+            userMapping == null
+                ? null
+                : ctx.AttributeAccessor.AccessFirstOrDefault<MapToFactoryAttribute>(userMapping.Method)?.FactoryMethodName;
+        if (
+            userMapping != null
+            && (ctx.SymbolAccessor.HasAttribute<DomainFactoryAttribute>(userMapping.Method) || configuredFactory != null)
+        )
+        {
+            var factoryName = configuredFactory ?? userMapping.Method.Name;
+            ctx.ReportDiagnosticAtSymbol(
+                DiagnosticDescriptors.DomainFactoryCannotBeUsedInProjection,
+                userMapping.Method,
+                factoryName,
+                targetType
+            );
+            return new NewInstanceObjectMemberMapping(sourceType, targetType.NonNullable())
+            {
+                Constructor = new UnimplementedInstanceConstructor(targetType),
+            };
+        }
+
         var mappingKey = BuildMappingKey(ctx, sourceType, targetType);
         var inlineCtx = new InlineExpressionMappingBuilderContext(ctx, userMapping, mappingKey);
 

@@ -19,6 +19,7 @@ public static partial class OtherMapper
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     public static partial global::MakerDto ToMakerDto(this global::Maker maker)
     {
         var target = new global::MakerDto()

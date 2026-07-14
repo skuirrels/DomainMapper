@@ -144,14 +144,16 @@ public static class UserMethodMappingExtractor
     private static bool IsMappingMethodCandidate(SimpleMappingBuilderContext ctx, IMethodSymbol method, bool requireAttribute = true)
     {
         requireAttribute &= !ctx.Configuration.Mapper.AutoUserMappings;
+        var isWholeSourceDomainFactory = ObjectFactoryBuilder.IsWholeSourceDomainFactory(ctx, method);
 
         // ignore all non-ordinary methods (e.g. ctor, operators, etc.) and methods declared on the object type (e.g. ToString)
         return method.MethodKind == MethodKind.Ordinary
             && ctx.SymbolAccessor.IsDirectlyAccessible(method)
             && !SymbolEqualityComparer.Default.Equals(method.ReceiverType, ctx.Compilation.ObjectType)
-            && !ObjectFactoryBuilder.IsFactory(ctx, method)
+            && (!ObjectFactoryBuilder.IsFactory(ctx, method) || isWholeSourceDomainFactory)
             && (
                 !requireAttribute
+                || isWholeSourceDomainFactory
                 || ctx.SymbolAccessor.HasAttribute<UserMappingAttribute>(method)
                 || method.IsPartialDefinition && ctx.SymbolAccessor.HasAttribute<DomainMapperAttribute>(method.ContainingType)
             );
@@ -464,6 +466,11 @@ public static class UserMethodMappingExtractor
     {
         var userMappingAttr = ctx.AttributeAccessor.AccessFirstOrDefault<UserMappingAttribute, UserMappingConfiguration>(method);
         hasAttribute = userMappingAttr != null;
+        if (ObjectFactoryBuilder.IsWholeSourceDomainFactory(ctx, method))
+        {
+            return (userMappingAttr ?? new UserMappingConfiguration()) with { Default = true };
+        }
+
         return userMappingAttr ?? new UserMappingConfiguration();
     }
 

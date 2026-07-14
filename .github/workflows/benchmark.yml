@@ -6,6 +6,7 @@ on:
     branches:
       - main
     paths:
+      - '.github/workflows/benchmark.yml'
       - 'src/**'
       - 'benchmarks/**'
       - 'global.json'
@@ -14,6 +15,7 @@ on:
     branches:
       - main
     paths:
+      - '.github/workflows/benchmark.yml'
       - 'src/**'
       - 'benchmarks/**'
       - 'global.json'
@@ -23,16 +25,28 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 env:
   BENCHMARKS_PATH: 'benchmarks/DomainMap.Benchmarks'
   BENCHMARK_RESULT_DIR: 'benchmarks/DomainMap.Benchmarks/artifacts/results'
+  BENCHMARK_REVERSED_RESULT_DIR: 'benchmarks/DomainMap.Benchmarks/artifacts/domainmap-first/results'
   BENCHMARK_BASELINE_DIR: './benchmark-results'
   BENCHMARK_BASELINE_FILE: './benchmark-results/benchmark-baseline-report.json'
+  DOMAINMAP_MAX_MAPPERLY_TIME_RATIO: '1.25'
+  DOMAINMAP_MAPPERLY_TIME_SLACK_NS: '1'
+  DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO: '1.00'
+  DOMAINMAP_MAX_MAPPERLY_GENERATOR_ALLOCATION_RATIO: '1.20'
+  DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES: '0'
 
 jobs:
   benchmark:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         BENCHMARK_NAME:
           - MappingBenchmarks
@@ -44,13 +58,57 @@ jobs:
       - uses: actions/setup-dotnet@v5
       - name: Run ${{ matrix.BENCHMARK_NAME }}
         working-directory: ${{ env.BENCHMARKS_PATH }}
-        run: dotnet run --exporters json --configuration Release --filter '*${{ matrix.BENCHMARK_NAME }}*'
+        env:
+          DOMAINMAP_BENCHMARK_ORDER: mapperly-first
+          DOMAINMAP_BENCHMARK_ARTIFACTS: artifacts
+        run: dotnet run --exporters json --configuration Release --filter '*.${{ matrix.BENCHMARK_NAME }}.*'
+      - name: Run comparison with DomainMap first
+        if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks'
+        working-directory: ${{ env.BENCHMARKS_PATH }}
+        env:
+          DOMAINMAP_BENCHMARK_ORDER: domainmap-first
+          DOMAINMAP_BENCHMARK_ARTIFACTS: artifacts/domainmap-first
+        run: dotnet run --exporters json --configuration Release --filter '*.${{ matrix.BENCHMARK_NAME }}.*'
+      - name: Prove generated runtime parity
+        if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks'
+        run: >-
+          dotnet run --no-build --configuration Release
+          --project ${{ env.BENCHMARKS_PATH }}/DomainMap.Benchmarks.csproj --
+          --write-comparison-parity
+          artifacts/obj/DomainMap.Benchmarks/release/generated/DomainMap/DomainMap.DomainMapGenerator/DomainMapBenchmarkMapper.g.cs
+          artifacts/obj/DomainMap.Benchmarks/release/generated/Riok.Mapperly/Riok.Mapperly.MapperGenerator/MapperlyBenchmarkMapper.g.cs
+          ${{ env.BENCHMARKS_PATH }}/ComparisonMappingBenchmarks.cs
+          ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap-vs-Mapperly-parity.json
       - name: Restore baseline results
         uses: actions/cache/restore@v5
         id: cache-baseline-results-restore
         with:
           path: ${{ env.BENCHMARK_BASELINE_DIR }}
-          key: benchmarks-${{ matrix.BENCHMARK_NAME }}
+          key: benchmarks-${{ matrix.BENCHMARK_NAME }}-main-${{ github.run_id }}
+          restore-keys: |
+            benchmarks-${{ matrix.BENCHMARK_NAME }}-main-
+      - name: Enforce Mapperly parity
+        if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks'
+        env:
+          DOMAINMAP_MAPPERLY_PARITY_REPORT: ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap-vs-Mapperly-parity.json
+          DOMAINMAP_MAPPERLY_FASTER_SCENARIOS: '*'
+        run: >-
+          dotnet run --no-build --configuration Release
+          --project ${{ env.BENCHMARKS_PATH }}/DomainMap.Benchmarks.csproj --
+          --check-comparison
+          ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
+          ${{ env.BENCHMARK_REVERSED_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
+      - name: Enforce Mapperly source-generator parity
+        if: matrix.BENCHMARK_NAME == 'SourceGeneratorBenchmarks'
+        env:
+          DOMAINMAP_MAPPERLY_TIME_SLACK_NS: '0'
+          DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO: ${{ env.DOMAINMAP_MAX_MAPPERLY_GENERATOR_ALLOCATION_RATIO }}
+          DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES: '0'
+        run: >-
+          dotnet run --no-build --configuration Release
+          --project ${{ env.BENCHMARKS_PATH }}/DomainMap.Benchmarks.csproj --
+          --check-comparison
+          ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
       - name: Compare benchmark result
         uses: rhysd/github-action-benchmark@v1
         with:
@@ -59,26 +117,24 @@ jobs:
           external-data-json-path: ${{ env.BENCHMARK_BASELINE_FILE }}
           output-file-path: >-
             ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
-          # Show alert with commit comment on detecting possible performance regression
-          alert-threshold: '300%'
-          comment-on-alert: true
+          alert-threshold: '125%'
+          fail-threshold: '125%'
+          summary-always: true
+          comment-on-alert: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           fail-on-alert: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      # it is not possible to update the cache
-      # delete it first https://github.com/actions/cache/issues/342
-      # needs to be done via PAT instead of GITHUB_TOKEN, since it requires additional permissions
-      # GH_REPO_PAT is only readable on the main branch / for contributors with write permissions
-      - name: Clear baseline results
-        if: steps.cache-baseline-results-restore.outputs.cache-hit == 'true' && github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ secrets.GH_REPO_PAT }}
-        run: |
-          gh extension install actions/gh-actions-cache
-          gh actions-cache delete '${{ steps.cache-baseline-results-restore.outputs.cache-primary-key }}' --confirm
       - name: Store baseline results
         id: cache-baseline-results-save
-        if: github.ref == 'refs/heads/main'
+        if: success() && github.ref == 'refs/heads/main'
         uses: actions/cache/save@v5
         with:
           path: ${{ env.BENCHMARK_BASELINE_DIR }}
           key: ${{ steps.cache-baseline-results-restore.outputs.cache-primary-key }}
+      - name: Retain benchmark reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-${{ matrix.BENCHMARK_NAME }}
+          path: ${{ env.BENCHMARKS_PATH }}/artifacts/**
+          if-no-files-found: error
+          retention-days: 90

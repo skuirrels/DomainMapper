@@ -1,3 +1,4 @@
+using DomainMap.Abstractions;
 using DomainMap.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -8,9 +9,16 @@ namespace DomainMap.Descriptors.ObjectFactories;
 /// <summary>
 /// An object factory represents a method to instantiate objects of a certain type.
 /// </summary>
-public abstract class ObjectFactory(SymbolAccessor symbolAccessor, IMethodSymbol method, bool mapToParameters = false)
+public abstract class ObjectFactory(
+    SymbolAccessor symbolAccessor,
+    IMethodSymbol method,
+    bool mapToParameters = false,
+    bool isDomainFactory = false
+)
 {
     internal IMethodSymbol Method { get; } = method;
+
+    internal bool IsDomainFactory { get; } = isDomainFactory || symbolAccessor.HasAttribute<DomainFactoryAttribute>(method);
 
     internal bool MapToParameters { get; } = mapToParameters;
 
@@ -49,9 +57,17 @@ public abstract class ObjectFactory(SymbolAccessor symbolAccessor, IMethodSymbol
         if (!Method.ReturnType.IsNullable())
             return expression;
 
-        ExpressionSyntax nullFallback = symbolAccessor.HasDirectlyAccessibleParameterlessConstructor(typeToCreate)
-            ? CreateInstance(typeToCreate)
-            : ThrowNullReferenceException($"The object factory {Method.Name} returned null");
+        ExpressionSyntax nullFallback;
+        if (IsDomainFactory)
+        {
+            nullFallback = ThrowNullReferenceException($"The domain factory {Method.Name} returned null");
+        }
+        else
+        {
+            nullFallback = symbolAccessor.HasDirectlyAccessibleParameterlessConstructor(typeToCreate)
+                ? CreateInstance(typeToCreate)
+                : ThrowNullReferenceException($"The object factory {Method.Name} returned null");
+        }
 
         return Coalesce(expression, nullFallback);
     }

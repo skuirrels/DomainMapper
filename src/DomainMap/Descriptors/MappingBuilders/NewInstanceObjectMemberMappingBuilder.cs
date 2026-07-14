@@ -17,7 +17,10 @@ public static class NewInstanceObjectMemberMappingBuilder
         if (ctx.Source.IsDelegate() || ctx.Target.IsDelegate())
             return null;
 
-        if (ctx.InstanceConstructors.TryBuildObjectFactory(ctx.Source, ctx.Target, out var constructor))
+        if (
+            !ctx.InstanceConstructors.HasDomainFactory(ctx.Source, ctx.Target)
+            && ctx.InstanceConstructors.TryBuildObjectFactory(ctx.Source, ctx.Target, out var constructor)
+        )
         {
             return new NewInstanceObjectMemberMethodMapping(
                 ctx.Source,

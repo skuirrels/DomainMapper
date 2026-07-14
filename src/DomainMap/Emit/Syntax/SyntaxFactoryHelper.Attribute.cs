@@ -9,6 +9,8 @@ public partial struct SyntaxFactoryHelper
     private const string UnsafeAccessorName = "global::System.Runtime.CompilerServices.UnsafeAccessor";
     private const string UnsafeAccessorKindName = "global::System.Runtime.CompilerServices.UnsafeAccessorKind";
     private const string UnsafeAccessorNameArgument = "Name";
+    private const string MethodImplName = "global::System.Runtime.CompilerServices.MethodImpl";
+    private const string MethodImplOptionsName = "global::System.Runtime.CompilerServices.MethodImplOptions";
 
     private static readonly IdentifierNameSyntax _unsafeAccessorKindName = IdentifierName(UnsafeAccessorKindName);
 
@@ -28,6 +30,9 @@ public partial struct SyntaxFactoryHelper
 
         return Attribute(UnsafeAccessorName, kind, Assignment(IdentifierName(UnsafeAccessorNameArgument), StringLiteral(name)));
     }
+
+    public AttributeListSyntax AggressiveInliningAttribute() =>
+        Attribute(MethodImplName, MemberAccess(IdentifierName(MethodImplOptionsName), IdentifierName("AggressiveInlining")));
 
     private AttributeListSyntax Attribute(string name, params ExpressionSyntax[] arguments)
     {

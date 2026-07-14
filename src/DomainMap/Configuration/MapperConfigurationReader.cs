@@ -41,6 +41,7 @@ public class MapperConfigurationReader
 
         MapperConfiguration = new MappingConfiguration(
             mapper,
+            null,
             new EnumMappingConfiguration(
                 mapper.EnumMappingStrategy,
                 mapper.EnumMappingIgnoreCase,
@@ -85,6 +86,7 @@ public class MapperConfigurationReader
         var derivedTypesConfig = BuildDerivedTypeConfigs(reference.Method);
         var configuration = new MappingConfiguration(
             MapperConfiguration.Mapper,
+            _dataAccessor.AccessFirstOrDefault<MapToFactoryAttribute>(reference.Method)?.FactoryMethodName,
             enumConfig,
             membersConfig,
             derivedTypesConfig,

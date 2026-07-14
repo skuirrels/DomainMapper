@@ -390,6 +390,10 @@ public static class EnumerableMappingBuilder
         if (ctx.HasUserSymbol)
             return info;
 
+        // Preserve concrete lists so generated loops can use the non-boxing List<T> indexer fast path.
+        if (info.CollectionType == CollectionType.List)
+            return info;
+
         CollectionType? collectionType =
             info.ImplementedTypes.HasFlag(CollectionType.IReadOnlyCollection) ? CollectionType.IReadOnlyCollection
             : info.ImplementedTypes.HasFlag(CollectionType.ICollection) ? CollectionType.ICollection

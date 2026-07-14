@@ -1,0 +1,21 @@
+---
+sidebar_label: DMAP003
+description: 'DomainMap analyzer diagnostic DMAP003 — Configured target-owned domain factory was not found'
+---
+
+# DMAP003 — Configured target-owned domain factory was not found
+
+DomainMap emits `DMAP003` when `[MapToFactory]` cannot resolve the configured method on the mapping target type.
+
+The factory must be an accessible, non-generic static method that returns the target type. Use `nameof` so renames remain compiler-checked:
+
+```csharp
+[MapToFactory(nameof(Order.Place))]
+public static partial Order ToDomain(PlaceOrder source);
+```
+
+```csharp
+public static Order Place(OrderId id, CustomerName customerName, OrderTotal total);
+```
+
+DomainMap does not fall back to a constructor or member assignment when this diagnostic is emitted because doing so could bypass aggregate invariants.

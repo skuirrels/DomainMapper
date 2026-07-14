@@ -5,24 +5,28 @@ namespace DomainMap.IntegrationTests.Mapper
     public partial class TestMapper
     {
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public partial int DirectInt(int value)
         {
             return value;
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public partial long ImplicitCastInt(int value)
         {
             return (long)value;
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public partial int ExplicitCastInt(uint value)
         {
             return (int)value;
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public partial int? CastIntNullable(int value)
         {
             return (int?)value;
@@ -41,6 +45,7 @@ namespace DomainMap.IntegrationTests.Mapper
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public partial global::System.DateTime DirectDateTime(global::System.DateTime dateTime)
         {
             return dateTime;
@@ -189,8 +194,9 @@ namespace DomainMap.IntegrationTests.Mapper
                 target.ExistingSortedSet.Add(ParseableInt(item2));
             }
             target.ExistingList.EnsureCapacity(testObject.ExistingList.Count + target.ExistingList.Count);
-            foreach (var item3 in testObject.ExistingList)
+            for (var i = 0; i < testObject.ExistingList.Count; i++)
             {
+                var item3 = testObject.ExistingList[i];
                 target.ExistingList.Add(ParseableInt(item3));
             }
             target.ISet = global::System.Linq.Enumerable.ToHashSet(
@@ -363,8 +369,9 @@ namespace DomainMap.IntegrationTests.Mapper
                 target.ExistingSortedSet.Add(item2.ToString(_formatDeCh));
             }
             target.ExistingList.EnsureCapacity(dto.ExistingList.Count + target.ExistingList.Count);
-            foreach (var item3 in dto.ExistingList)
+            for (var i = 0; i < dto.ExistingList.Count; i++)
             {
+                var item3 = dto.ExistingList[i];
                 target.ExistingList.Add(item3.ToString(_formatDeCh));
             }
             target.ISet = global::System.Linq.Enumerable.ToHashSet(
@@ -519,8 +526,9 @@ namespace DomainMap.IntegrationTests.Mapper
                 target.ExistingSortedSet.Add(ParseableInt(item2));
             }
             target.ExistingList.EnsureCapacity(source.ExistingList.Count + target.ExistingList.Count);
-            foreach (var item3 in source.ExistingList)
+            for (var i = 0; i < source.ExistingList.Count; i++)
             {
+                var item3 = source.ExistingList[i];
                 target.ExistingList.Add(ParseableInt(item3));
             }
             target.ISet = global::System.Linq.Enumerable.ToHashSet(
@@ -597,6 +605,7 @@ namespace DomainMap.IntegrationTests.Mapper
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private partial int PrivateDirectInt(int value)
         {
             return value;
@@ -733,8 +742,9 @@ namespace DomainMap.IntegrationTests.Mapper
                 target.ExistingSortedSet.Add(ParseableInt(item2));
             }
             target.ExistingList.EnsureCapacity(testObject.ExistingList.Count + target.ExistingList.Count);
-            foreach (var item3 in testObject.ExistingList)
+            for (var i = 0; i < testObject.ExistingList.Count; i++)
             {
+                var item3 = testObject.ExistingList[i];
                 target.ExistingList.Add(ParseableInt(item3));
             }
             target.ISet = global::System.Linq.Enumerable.ToHashSet(

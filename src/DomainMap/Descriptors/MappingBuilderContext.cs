@@ -349,6 +349,9 @@ public class MappingBuilderContext : SimpleMappingBuilderContext
     public void ReportDiagnostic(DiagnosticDescriptor descriptor, params object[] messageArgs) =>
         base.ReportDiagnostic(descriptor, (ISymbol?)null, messageArgs);
 
+    public void ReportDiagnosticAtSymbol(DiagnosticDescriptor descriptor, ISymbol? symbolLocation, params object[] messageArgs) =>
+        base.ReportDiagnostic(descriptor, symbolLocation, messageArgs);
+
     public NullFallbackValue GetNullFallbackValue(ITypeSymbol? targetType = null) =>
         GetNullFallbackValue(targetType ?? Target, Configuration.Mapper.ThrowOnMappingNullMismatch);
 

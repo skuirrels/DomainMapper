@@ -40,6 +40,9 @@ public class InstanceConstructorFactory(
     public bool HasParameterMappingObjectFactory(ITypeSymbol source, ITypeSymbol target) =>
         objectFactories.FindObjectFactories(source, target).Any(x => x.MapToParameters);
 
+    public bool HasDomainFactory(ITypeSymbol source, ITypeSymbol target) =>
+        objectFactories.FindObjectFactories(source, target).Any(x => x.IsDomainFactory);
+
     public IEnumerable<IInstanceConstructor> BuildForObjectFactories(ITypeSymbol source, ITypeSymbol target) =>
         objectFactories.FindObjectFactories(source, target).Select(factory => BuildForObjectFactory(factory, source, target));
 

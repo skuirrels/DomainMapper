@@ -24,11 +24,12 @@ public partial class Mapper
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
-    private global::System.Collections.Generic.List<global::BBase?> MapToListOfBBase(global::System.Collections.Generic.IReadOnlyCollection<global::ABase> source)
+    private global::System.Collections.Generic.List<global::BBase?> MapToListOfBBase(global::System.Collections.Generic.List<global::ABase> source)
     {
         var target = new global::System.Collections.Generic.List<global::BBase?>(source.Count);
-        foreach (var item in source)
+        for (var i = 0; i < source.Count; i++)
         {
+            var item = source[i];
             target.Add(Map(item));
         }
         return target;

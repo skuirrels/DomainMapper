@@ -24,6 +24,8 @@ public class UnsafeConstructorAccessor(IMethodSymbol symbol, string className, s
 {
     public bool SupportsObjectInitializer => false;
 
+    public bool SupportsMemberAssignment => true;
+
     public MethodDeclarationSyntax BuildAccessorMethod(SourceEmitterContext ctx)
     {
         var methodSymbol = symbol.ContainingType.IsGenericType ? symbol.OriginalDefinition : symbol;

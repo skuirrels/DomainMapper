@@ -14,42 +14,38 @@ using DomainMap.Abstractions;
 [DomainMapper]
 public static partial class OrdersMap
 {
-    [DomainFactory]
-    private static Order Create(
-        OrderId id,
-        CustomerName customerName,
-        Money total)
-        => Order.Place(id, customerName, total);
+    [MapToFactory(nameof(Order.Place))]
+    public static partial Order ToDomain(this PlaceOrder command);
 
-    private static OrderId ToOrderId(Guid value) => new(value);
-    private static CustomerName ToCustomerName(string value) => CustomerName.Create(value);
-    private static Money ToMoney(decimal value) => Money.Gbp(value);
-
-    public static partial Order ToDomain(PlaceOrder command);
-    public static partial OrderView ToView(Order order);
+    public static partial OrderDto ToDto(this Order order);
 }
 ```
 
 The generated construction path is intentionally boring and inspectable:
 
 ```csharp
-var target = Create(
-    ToOrderId(source.Id),
-    ToCustomerName(source.CustomerName),
-    ToMoney(source.Total));
+var target = Order.Place(
+    OrderId.Create(source.Id),
+    CustomerName.Create(source.CustomerName),
+    Money.Create(source.Total));
 return target;
 ```
 
-`[DomainFactory]` is the DDD-focused difference: its parameters are bound from source members automatically. The factory body remains ordinary user code, so validation and invariants are never reimplemented by the generator.
+`[MapToFactory]` names the target-owned aggregate factory directly. DomainMap binds command members to its parameters and applies normal conversions, including conventional one-argument value-object factories such as `OrderId.Create(Guid)`. The factory is a required boundary: if DomainMap cannot satisfy it, compilation fails instead of silently choosing a public constructor or assigning properties.
+
+For outbound DTO mapping, value objects can expose safe implicit conversions or conventional `ToX` methods. Use `[DomainFactory]` for advanced mapper-owned boundaries such as immutable updates, whole-source factories, or application result contracts.
 
 ## Design boundary
 
 DomainMap owns data movement. Your domain owns behavior.
 
 - Use generated mappings for commands, integration contracts, persistence models, read models, and projections.
-- Use `[DomainFactory]` to enter an aggregate through a constructor or named factory.
-- Use small user mappings for strongly typed IDs and value objects.
-- Keep aggregate updates that require behavior as explicit domain method calls. DomainMap will not guess that `Status = Shipped` means `order.Ship()`.
+- Use `[MapToFactory(nameof(Aggregate.Create))]` as the concise default for entering an aggregate through a target-owned static factory.
+- Let conventional `Create(TValue)` methods construct strongly typed IDs and value objects.
+- Use `[DomainFactory]` when the boundary is mapper-owned or needs the whole source value.
+- Pass the current aggregate as an additional mapping parameter when an immutable update delegates to domain behavior. DomainMap will not guess that `Status = Shipped` means `order.Ship()`.
+- Keep expected business failures explicit in your own result type; DomainMap does not introduce a runtime result abstraction.
+- Project persistence entities to read models. Domain factories are deliberately rejected inside `IQueryable` projections.
 
 ## Capability surface
 
@@ -66,7 +62,7 @@ The inherited engine covers:
 - `IQueryable` projection generation;
 - incremental generation and analyzer diagnostics.
 
-The suite retains Mapperly's broad conformance corpus and adds DomainMap-specific generator and runtime tests for factory binding, optional arguments, strongly typed IDs, null guards, generic factories, fallback selection, inheritance, and invariant failures.
+The suite retains Mapperly's broad conformance corpus and adds DomainMap-specific generator and runtime tests for required factory binding, strongly typed IDs, immutable aggregate updates, explicit failure results, projection rejection, and invariant failures.
 
 ## Build and test
 

@@ -6,6 +6,12 @@ namespace DomainMap.Abstractions
     public sealed class DomainFactoryAttribute : System.Attribute
     {
         public DomainFactoryAttribute() { }
+        public DomainMap.Abstractions.DomainFactoryInput Input { get; set; }
+    }
+    public enum DomainFactoryInput
+    {
+        Members = 0,
+        Source = 1,
     }
     [System.AttributeUsage(System.AttributeTargets.Class)]
     [System.Diagnostics.Conditional("DOMAINMAP_ABSTRACTIONS_SCOPE_RUNTIME")]
@@ -140,6 +146,13 @@ namespace DomainMap.Abstractions
         public System.Collections.Generic.IReadOnlyCollection<string> Target { get; }
         public string TargetFullName { get; }
         public string? Use { get; set; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Method)]
+    [System.Diagnostics.Conditional("DOMAINMAP_ABSTRACTIONS_SCOPE_RUNTIME")]
+    public sealed class MapToFactoryAttribute : System.Attribute
+    {
+        public MapToFactoryAttribute(string factoryMethodName) { }
+        public string FactoryMethodName { get; }
     }
     [System.AttributeUsage(System.AttributeTargets.Method, AllowMultiple=true)]
     [System.Diagnostics.Conditional("DOMAINMAP_ABSTRACTIONS_SCOPE_RUNTIME")]

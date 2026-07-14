@@ -19,29 +19,23 @@ using DomainMap.Abstractions;
 [DomainMapper]
 public static partial class OrdersMap
 {
-    [DomainFactory]
-    private static Order Create(OrderId id, CustomerName customerName, Money total)
-        => Order.Place(id, customerName, total);
+    [MapToFactory(nameof(Order.Place))]
+    public static partial Order ToDomain(this PlaceOrder command);
 
-    private static OrderId ToOrderId(Guid value) => new(value);
-    private static CustomerName ToCustomerName(string value) => CustomerName.Create(value);
-    private static Money ToMoney(decimal value) => Money.Gbp(value);
-
-    public static partial Order ToDomain(PlaceOrder command);
-    public static partial OrderView ToView(Order order);
+    public static partial OrderDto ToDto(this Order order);
 }
 ```
 
-`[DomainFactory]` binds source members to the factory parameters by name. The generated mapper moves data to the boundary; the factory remains ordinary domain code and owns validation.
+`[MapToFactory]` binds source members directly to a target-owned aggregate factory. Conventional one-argument `Create` methods construct strongly typed IDs and value objects automatically. These are required boundaries: an unsatisfied factory produces a compile-time error instead of falling back to property assignment.
 
 ## Design principles
 
 - Generated code owns mechanical data movement.
 - The domain owns construction rules and behavior.
-- Strongly typed IDs and value objects use small, explicit conversion methods.
-- Aggregate state changes that carry business meaning remain explicit domain method calls.
+- Strongly typed IDs and value objects use small, explicit domain factories.
+- Aggregate state changes that carry business meaning receive the current aggregate and delegate to a domain method.
 - Generated output stays readable, debuggable, trimming-safe, and AOT-friendly.
 
 ## Status
 
-DomainMap is currently source-built and experimental; it is not yet a published NuGet product. Start with the [installation guide](/docs/getting-started/installation), then explore the inherited mapping capabilities under **Usage and configuration**.
+DomainMap is currently source-built and experimental; it is not yet a published NuGet product. Start with the [installation guide](/docs/getting-started/installation), then read [domain boundaries](/docs/configuration/domain-boundaries) before exploring the inherited mapping capabilities.

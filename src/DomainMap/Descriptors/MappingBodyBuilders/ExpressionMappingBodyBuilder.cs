@@ -16,6 +16,17 @@ public static class ExpressionMappingBodyBuilder
         var sourceType = mapping.ExpressionSourceType;
         var targetType = mapping.ExpressionTargetType;
 
+        if (ctx.Configuration.TargetFactoryMethodName is { } factoryMethodName)
+        {
+            ctx.ReportDiagnosticAtSymbol(
+                DiagnosticDescriptors.DomainFactoryCannotBeUsedInProjection,
+                mapping.Method,
+                factoryMethodName,
+                targetType
+            );
+            return;
+        }
+
         var delegateMapping = InlineExpressionMappingBuilder.TryBuildInlineMappingForExpression(ctx, sourceType, targetType);
         if (delegateMapping != null)
         {

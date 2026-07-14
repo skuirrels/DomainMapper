@@ -19,6 +19,10 @@ To map source members to factory method parameters, enable `MapToParameters`.
 This uses the same parameter matching rules as constructor mappings.
 Generic factory methods with a generic target return type are supported.
 
+:::tip Domain boundary or object factory?
+Use [`DomainFactoryAttribute`](./domain-boundaries.md) when the method is a required aggregate or value-object boundary and falling back to ordinary construction could violate invariants. Use `ObjectFactoryAttribute` for optional infrastructure construction or resolution.
+:::
+
 :::info
 If an object factory is used for a certain type,
 DomainMap cannot map to init only properties or constructor parameters.

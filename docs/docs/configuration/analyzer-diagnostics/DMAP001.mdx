@@ -1,0 +1,20 @@
+---
+sidebar_label: DMAP001
+description: 'DomainMap analyzer diagnostic DMAP001 — Required domain factory cannot be satisfied'
+---
+
+# DMAP001 — Required domain factory cannot be satisfied
+
+DomainMap emits `DMAP001` when a method marked with `DomainFactoryAttribute` is the target construction boundary but one or more required parameters cannot be mapped.
+
+Add or rename the corresponding source member, provide an additional mapping parameter, or add an explicit conversion for its type. DomainMap does not fall back to a public constructor or member assignment because that could bypass aggregate invariants.
+
+```csharp
+[DomainFactory]
+private static Order Create(OrderId id, CustomerName customerName)
+    => Order.Place(id, customerName);
+
+public static partial Order Map(PlaceOrder source);
+```
+
+In this example, `PlaceOrder` must provide values that can be bound to both `id` and `customerName`.
