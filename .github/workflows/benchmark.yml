@@ -79,7 +79,7 @@ jobs:
           ${{ env.BENCHMARKS_PATH }}/ComparisonMappingBenchmarks.cs
           ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap-vs-Mapperly-parity.json
       - name: Restore baseline results
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: cache-baseline-results-restore
         with:
           path: ${{ env.BENCHMARK_BASELINE_DIR }}
@@ -131,13 +131,13 @@ jobs:
       - name: Store baseline results
         id: cache-baseline-results-save
         if: success() && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ${{ env.BENCHMARK_BASELINE_DIR }}
           key: ${{ steps.cache-baseline-results-restore.outputs.cache-primary-key }}
       - name: Retain benchmark reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-${{ matrix.BENCHMARK_NAME }}
           path: ${{ env.BENCHMARKS_PATH }}/artifacts/**

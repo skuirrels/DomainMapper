@@ -27,7 +27,7 @@ jobs:
         run: ./scripts/run-stable-benchmarks.sh
       - name: Retain stable evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-stable-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/domainmap-stable/**
