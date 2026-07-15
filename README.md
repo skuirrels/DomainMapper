@@ -4,7 +4,7 @@
 
 DomainMap is a compile-time object mapper for .NET 10 with a domain-driven design bias. It generates readable C# with no runtime reflection, while keeping constructors, named factories, value objects, and aggregate invariants under domain ownership.
 
-> Status: experimental standalone fork. DomainMap is derived from [Mapperly](https://github.com/riok/mapperly) under Apache-2.0 and retains its mature structural mapping engine. See [NOTICE](NOTICE).
+> **Status:** v1.0.0 is available as a GitHub source release; NuGet publishing is intentionally deferred. See [NOTICE](NOTICE) for third-party attribution.
 
 ## The API
 
@@ -62,7 +62,7 @@ The inherited engine covers:
 - `IQueryable` projection generation;
 - incremental generation and analyzer diagnostics.
 
-The suite retains Mapperly's broad conformance corpus and adds DomainMap-specific generator and runtime tests for required factory binding, strongly typed IDs, immutable aggregate updates, explicit failure results, projection rejection, and invariant failures.
+The suite combines broad structural mapping coverage with DomainMap-specific generator and runtime tests for required factory binding, strongly typed IDs, immutable aggregate updates, explicit failure results, projection rejection, and invariant failures.
 
 ## Build and test
 
@@ -96,6 +96,6 @@ See [benchmark methodology and initial results](docs/benchmarks.md).
 - `test/DomainMap.IntegrationTests` — generated-code runtime tests.
 - `benchmarks/DomainMap.Benchmarks` — DomainMap versus Mapperly comparisons.
 
-## License and origin
+## License
 
-DomainMap is licensed under Apache-2.0. It is an independent derivative work and is not affiliated with or endorsed by the Mapperly maintainers. The original project and contributor attribution are preserved in [NOTICE](NOTICE).
+DomainMap is licensed under Apache-2.0. Third-party attribution is preserved in [NOTICE](NOTICE).

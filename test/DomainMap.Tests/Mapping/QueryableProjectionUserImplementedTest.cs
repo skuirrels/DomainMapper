@@ -296,7 +296,6 @@ public class QueryableProjectionUserImplementedTest
     [Fact]
     public Task UserImplementedTwoNestedProjectionsShouldReuseInlinedMapping()
     {
-        // https://github.com/riok/mapperly/issues/1965
         var source = TestSourceBuilder.CSharp(
             """
             using System;

@@ -238,7 +238,6 @@ public class ExpressionMappingTest
     [Fact]
     public Task RecordToRecordDisabledNullableContext()
     {
-        // see https://github.com/riok/mapperly/issues/1196
         var source = TestSourceBuilder.MapperWithBodyAndTypes(
             """
             public partial System.Linq.Expressions.Expression<System.Func<A, B>> Map();

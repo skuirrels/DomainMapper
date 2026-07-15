@@ -1226,7 +1226,6 @@ public class UserMethodTest
     [Fact]
     public void WithGenericUserImplementedDoesNotOverrideExplicitlyReferencedMapping()
     {
-        // https://github.com/riok/mapperly/issues/2277
         // a generic user-implemented mapping must not shadow a mapping
         // which is explicitly referenced via Use on another member.
         var source = TestSourceBuilder.MapperWithBodyAndTypes(
@@ -1260,7 +1259,6 @@ public class UserMethodTest
     [Fact]
     public void WithGenericUserImplementedExistingTargetDoesNotOverrideExplicitlyReferencedMapping()
     {
-        // https://github.com/riok/mapperly/issues/2277
         // same as above but for existing target (void) mappings.
         var source = TestSourceBuilder.MapperWithBodyAndTypes(
             """

@@ -116,7 +116,6 @@ public class QueryableProjectionNullableTest
     public Task NestedPropertyWithDeepCloneable()
     {
         // deep cloneable should be ignored.
-        // see https://github.com/riok/mapperly/issues/1710
         var source = TestSourceBuilder.MapperWithBodyAndTypes(
             """
             public partial System.Linq.IQueryable<B> Map(System.Linq.IQueryable<A> source);
@@ -167,7 +166,6 @@ public class QueryableProjectionNullableTest
     [Fact]
     public Task ClassToRecordNoAccessibleSourceCtorShouldNotDiagnostic()
     {
-        // see https://github.com/riok/mapperly/issues/972
         var source = TestSourceBuilder.Mapping(
             "System.Linq.IQueryable<A>",
             "System.Linq.IQueryable<B>",
@@ -192,7 +190,6 @@ public class QueryableProjectionNullableTest
     [Fact]
     public Task RecordToClassDisabledNullableContext()
     {
-        // see https://github.com/riok/mapperly/issues/1196
         var source = TestSourceBuilder.Mapping(
             "System.Linq.IQueryable<A>",
             "System.Linq.IQueryable<B>",

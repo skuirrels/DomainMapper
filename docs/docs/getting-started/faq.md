@@ -32,7 +32,3 @@ Write the mapping for that class manually. You can mix automatically generated m
 Are you using [reference handling](../configuration/reference-handling.md)
 or have you enabled the [preservation of DomainMap attributes at runtime](installation.mdx#preserving-the-attributes-at-runtime)?
 Make sure `ExcludeAssets` on the `PackageReference` does not include `runtime` as these features require runtime assets.
-
-## Is DomainMap supported by the Mapperly maintainers?
-
-No. DomainMap is an independent derivative and is not affiliated with or endorsed by the Mapperly maintainers. Report DomainMap problems in the repository where this source is published rather than in Mapperly's issue tracker.

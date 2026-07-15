@@ -108,7 +108,7 @@ async function createConfig() {
         footer: {
           style: 'dark',
           copyright:
-            'DomainMap is an independent Apache-2.0 derivative of <a href="https://github.com/riok/mapperly">Mapperly</a>.',
+            'Copyright © 2026 DomainMap contributors. Licensed under Apache-2.0.',
           links: [
             {
               title: 'Docs',
@@ -133,15 +133,6 @@ async function createConfig() {
                 {
                   label: 'Contributing',
                   to: '/docs/contributing',
-                },
-              ],
-            },
-            {
-              title: 'More',
-              items: [
-                {
-                  label: 'Mapperly origin',
-                  href: 'https://github.com/riok/mapperly',
                 },
               ],
             },
