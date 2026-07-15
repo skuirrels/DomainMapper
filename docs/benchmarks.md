@@ -42,9 +42,9 @@ The cleaner `[MapToFactory(nameof(BenchmarkAggregate.Create))]` declaration gene
 
 The isolated cold source-generation run is now a statistical win:
 
-| Generator | Median | Allocation | Result |
-| --------- | -----: | ---------: | ------ |
-| Mapperly  | 2.407 ms | 1,495,007 B | — |
+| Generator |   Median |  Allocation | Result |
+| --------- | -------: | ----------: | ------ |
+| Mapperly  | 2.407 ms | 1,495,007 B | —      |
 | DomainMap | 2.142 ms | 1,420,485 B | Faster |
 
 The median is 11.0% lower, allocation is 5.0% lower, and the one-sided 95% upper bound for DomainMap minus Mapperly is -0.256 ms.
