@@ -10,6 +10,7 @@ public class GeneratedMethod
         Name = declarationSyntax.Identifier.ToString();
         Signature = $"{declarationSyntax.ReturnType.ToString()} {Name}{declarationSyntax.ParameterList.ToString().Trim()}";
         ConstraintClauses = ExtractParameterConstraints(declarationSyntax.ConstraintClauses);
+        Attributes = declarationSyntax.AttributeLists.SelectMany(x => x.Attributes).Select(x => x.Name.ToString()).ToArray();
         Body = ExtractBody(declarationSyntax);
     }
 
@@ -18,6 +19,8 @@ public class GeneratedMethod
     public string Signature { get; }
 
     public string? ConstraintClauses { get; }
+
+    public IReadOnlyCollection<string> Attributes { get; }
 
     public string Body { get; }
 

@@ -5,30 +5,35 @@ namespace DomainMap.IntegrationTests.Mapper
     public static partial class StaticTestMapper
     {
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public static partial int DirectInt(int value)
         {
             return value;
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public static partial int? DirectIntNullable(int? value)
         {
             return value == null ? default(int?) : value.Value;
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public static partial long ImplicitCastInt(int value)
         {
             return (long)value;
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public static partial int ExplicitCastInt(uint value)
         {
             return (int)value;
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public static partial int? CastIntNullable(int value)
         {
             return (int?)value;
@@ -47,6 +52,7 @@ namespace DomainMap.IntegrationTests.Mapper
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public static partial global::System.DateTime DirectDateTime(global::System.DateTime dateTime)
         {
             return dateTime;
@@ -531,8 +537,9 @@ namespace DomainMap.IntegrationTests.Mapper
                 target.ExistingSortedSet.Add(item2.ToString());
             }
             target.ExistingList.Capacity = dto.ExistingList.Count + target.ExistingList.Count;
-            foreach (var item3 in dto.ExistingList)
+            for (var i = 0; i < dto.ExistingList.Count; i++)
             {
+                var item3 = dto.ExistingList[i];
                 target.ExistingList.Add(item3.ToString());
             }
             target.ISet = global::System.Linq.Enumerable.ToHashSet(global::System.Linq.Enumerable.Select(dto.ISet, x => x.ToString()));
@@ -729,6 +736,7 @@ namespace DomainMap.IntegrationTests.Mapper
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private static partial int PrivateDirectInt(int value)
         {
             return value;
@@ -917,6 +925,7 @@ namespace DomainMap.IntegrationTests.Mapper
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public static partial global::DomainMap.IntegrationTests.Models.TestEnum MapToEnumByValueWithExplicit(global::DomainMap.IntegrationTests.Dto.TestEnumDtoAdditionalValue v)
         {
             return v switch
@@ -945,6 +954,7 @@ namespace DomainMap.IntegrationTests.Mapper
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public static partial global::DomainMap.IntegrationTests.Models.TestEnum MapToEnumByValueCheckDefinedWithFallback(global::DomainMap.IntegrationTests.Dto.TestEnumDtoByValue v)
         {
             return (global::DomainMap.IntegrationTests.Models.TestEnum)v is global::DomainMap.IntegrationTests.Models.TestEnum.Value10 or global::DomainMap.IntegrationTests.Models.TestEnum.Value20 or global::DomainMap.IntegrationTests.Models.TestEnum.Value30 ? (global::DomainMap.IntegrationTests.Models.TestEnum)v : global::DomainMap.IntegrationTests.Models.TestEnum.Value10;
@@ -957,6 +967,7 @@ namespace DomainMap.IntegrationTests.Mapper
         }
 
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public static partial global::DomainMap.IntegrationTests.Models.TestEnum MapToEnumByNameWithFallback(global::DomainMap.IntegrationTests.Dto.TestEnumDtoByName v)
         {
             return v switch

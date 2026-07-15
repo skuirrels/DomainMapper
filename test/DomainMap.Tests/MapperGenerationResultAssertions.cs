@@ -166,6 +166,18 @@ public class MapperGenerationResultAssertions
         return this;
     }
 
+    public MapperGenerationResultAssertions HaveMethodAttribute(string methodName, string attributeName)
+    {
+        _mapper.Methods[methodName].Attributes.ShouldContain(attributeName);
+        return this;
+    }
+
+    public MapperGenerationResultAssertions NotHaveMethodAttribute(string methodName, string attributeName)
+    {
+        _mapper.Methods[methodName].Attributes.ShouldNotContain(attributeName);
+        return this;
+    }
+
     public MapperGenerationResultAssertions HaveMapMethodBody([StringSyntax(StringSyntax.CSharp)] string mapperMethodBody) =>
         HaveMethodBody(TestSourceBuilder.DefaultMapMethodName, mapperMethodBody);
 

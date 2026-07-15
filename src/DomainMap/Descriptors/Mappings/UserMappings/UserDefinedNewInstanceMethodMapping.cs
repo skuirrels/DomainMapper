@@ -16,6 +16,7 @@ public class UserDefinedNewInstanceMethodMapping(
     MethodParameter? referenceHandlerParameter,
     ITypeSymbol targetType,
     bool enableReferenceHandling,
+    bool isConfiguredDomainFactory,
     bool isDerivedTypeMapping
 ) : NewInstanceMethodMapping(method, sourceParameter, referenceHandlerParameter, targetType), INewInstanceUserMapping
 {
@@ -30,6 +31,8 @@ public class UserDefinedNewInstanceMethodMapping(
     public bool? Default { get; } = isDefault;
 
     public bool IsExternal => false;
+
+    protected override bool AllowFactoryBoundaryInlining => isConfiguredDomainFactory;
 
     /// <summary>
     /// The reference handling is enabled but is only internal to this method.

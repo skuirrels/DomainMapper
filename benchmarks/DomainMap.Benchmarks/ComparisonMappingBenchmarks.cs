@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using DomainMap.Abstractions;
@@ -105,6 +106,8 @@ public static partial class MapperlyBenchmarkMapper
 
     public static partial BenchmarkOrderTarget MapOrder(BenchmarkOrderSource source);
 
+    // DomainMap emits this hint for the equivalent root mapping. Apply the same compiled metadata here so parity scenarios compare bodies.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static partial void UpdateFlat(BenchmarkFlatSource source, BenchmarkFlatTarget target);
 
     private static BenchmarkAggregateId ToAggregateId(int value) => new BenchmarkAggregateId(value);
@@ -113,8 +116,10 @@ public static partial class MapperlyBenchmarkMapper
     private static BenchmarkAggregate Create(BenchmarkFlatSource source) =>
         BenchmarkAggregate.Create(new BenchmarkAggregateId(source.Id), source.Name, source.Amount, source.CreatedAt);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static partial BenchmarkAggregate Place(BenchmarkFlatSource source);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static partial BenchmarkIdTarget MapId(BenchmarkIdSource source);
 }
 #pragma warning restore RMG066

@@ -17,6 +17,7 @@ namespace DomainMap.Descriptors.Mappings;
 [DebuggerDisplay("{GetType().Name}({SourceType} => {TargetType})")]
 public abstract class MethodMapping : ITypeMapping, IParameterizedMapping
 {
+    private const int MaxFactoryBoundaryInvocationCount = 6;
     protected const string DefaultReferenceHandlerParameterName = "refHandler";
     private const string DefaultSourceParameterName = "source";
 
@@ -71,6 +72,8 @@ public abstract class MethodMapping : ITypeMapping, IParameterizedMapping
     protected MethodParameter SourceParameter { get; }
 
     protected MethodParameter? ReferenceHandlerParameter { get; private set; }
+
+    protected virtual bool AllowFactoryBoundaryInlining => false;
 
     public ITypeSymbol SourceType => SourceParameter.Type;
 
@@ -166,7 +169,11 @@ public abstract class MethodMapping : ITypeMapping, IParameterizedMapping
         if (Method == null || SourceType.IsRefLikeType || TargetType.IsRefLikeType || body.Statements.Count > 6)
             return false;
 
-        if (body.DescendantNodes().Any(x => x is InvocationExpressionSyntax or LambdaExpressionSyntax or QueryExpressionSyntax))
+        if (body.DescendantNodes().Any(x => x is LambdaExpressionSyntax or QueryExpressionSyntax))
+            return false;
+
+        var invocationCount = body.DescendantNodes().Count(x => x is InvocationExpressionSyntax);
+        if (invocationCount > 0 && (!AllowFactoryBoundaryInlining || invocationCount > MaxFactoryBoundaryInvocationCount))
             return false;
 
         return !body.DescendantNodes()

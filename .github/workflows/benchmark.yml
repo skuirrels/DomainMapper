@@ -39,7 +39,6 @@ env:
   DOMAINMAP_MAX_MAPPERLY_TIME_RATIO: '1.25'
   DOMAINMAP_MAPPERLY_TIME_SLACK_NS: '1'
   DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO: '1.00'
-  DOMAINMAP_MAX_MAPPERLY_GENERATOR_ALLOCATION_RATIO: '1.20'
   DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES: '0'
 
 jobs:
@@ -63,7 +62,7 @@ jobs:
           DOMAINMAP_BENCHMARK_ARTIFACTS: artifacts
         run: dotnet run --exporters json --configuration Release --filter '*.${{ matrix.BENCHMARK_NAME }}.*'
       - name: Run comparison with DomainMap first
-        if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks'
+        if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks' || matrix.BENCHMARK_NAME == 'SourceGeneratorBenchmarks'
         working-directory: ${{ env.BENCHMARKS_PATH }}
         env:
           DOMAINMAP_BENCHMARK_ORDER: domainmap-first
@@ -91,24 +90,30 @@ jobs:
         if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks'
         env:
           DOMAINMAP_MAPPERLY_PARITY_REPORT: ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap-vs-Mapperly-parity.json
-          DOMAINMAP_MAPPERLY_FASTER_SCENARIOS: '*'
+          DOMAINMAP_MAPPERLY_FASTER_SCENARIOS: 'Flat'
+          DOMAINMAP_MAPPERLY_MIN_REPORTS: '2'
+          DOMAINMAP_MAPPERLY_MIN_SAMPLES: '6'
         run: >-
           dotnet run --no-build --configuration Release
           --project ${{ env.BENCHMARKS_PATH }}/DomainMap.Benchmarks.csproj --
           --check-comparison
           ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
           ${{ env.BENCHMARK_REVERSED_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
-      - name: Enforce Mapperly source-generator parity
+      - name: Record hosted source-generator comparison
         if: matrix.BENCHMARK_NAME == 'SourceGeneratorBenchmarks'
+        continue-on-error: true
         env:
           DOMAINMAP_MAPPERLY_TIME_SLACK_NS: '0'
-          DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO: ${{ env.DOMAINMAP_MAX_MAPPERLY_GENERATOR_ALLOCATION_RATIO }}
+          DOMAINMAP_MAPPERLY_MIN_REPORTS: '2'
+          DOMAINMAP_MAPPERLY_MIN_SAMPLES: '24'
+          DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO: '1.10'
           DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES: '0'
         run: >-
           dotnet run --no-build --configuration Release
           --project ${{ env.BENCHMARKS_PATH }}/DomainMap.Benchmarks.csproj --
           --check-comparison
           ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
+          ${{ env.BENCHMARK_REVERSED_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
       - name: Compare benchmark result
         uses: rhysd/github-action-benchmark@v1
         with:

@@ -51,7 +51,14 @@ internal static class SyntaxProvider
             .SelectMany(static (x, _) => x)
             .Collect();
 
-        return staticDomainMapperAttributes.Combine(genericStaticDomainMapperAttributes).Select(static (x, _) => x.Left.AddRange(x.Right));
+        return staticDomainMapperAttributes
+            .Combine(genericStaticDomainMapperAttributes)
+            .Select(
+                static (x, _) =>
+                    x.Left.IsDefaultOrEmpty ? x.Right
+                    : x.Right.IsDefaultOrEmpty ? x.Left
+                    : x.Left.AddRange(x.Right)
+            );
     }
 
     public static IncrementalValueProvider<IAssemblySymbol?> GetMapperDefaultDeclarations(IncrementalGeneratorInitializationContext context)

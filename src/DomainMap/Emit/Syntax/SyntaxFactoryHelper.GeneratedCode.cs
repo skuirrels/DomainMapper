@@ -5,9 +5,15 @@ namespace DomainMap.Emit.Syntax;
 
 public partial struct SyntaxFactoryHelper
 {
-    public AttributeListSyntax GeneratedCodeAttribute()
+    public AttributeListSyntax GeneratedCodeAttribute() =>
+        Indentation < CachedAttributeIndentationCount
+            ? AttributeCache.GeneratedCode[Indentation]
+            : BuildGeneratedCodeAttribute(Indentation);
+
+    private static AttributeListSyntax BuildGeneratedCodeAttribute(int indentation)
     {
-        return Attribute(
+        var syntaxFactory = new SyntaxFactoryHelper(indentation, default);
+        return syntaxFactory.Attribute(
             DomainMapGeneratedCodeAttribute.GeneratedCodeAttributeName,
             StringLiteral(DomainMapGeneratedCodeAttribute.GeneratorToolName),
             StringLiteral(DomainMapGeneratedCodeAttribute.GeneratorToolVersion)

@@ -4,6 +4,7 @@ using System.Linq.Expressions;
 using DomainMap.Abstractions;
 using DomainMap.Configuration;
 using DomainMap.Configuration.MethodReferences;
+using DomainMap.Descriptors.MappingBuilders;
 using DomainMap.Descriptors.Mappings;
 using DomainMap.Descriptors.Mappings.UserMappings;
 using DomainMap.Descriptors.ObjectFactories;
@@ -215,7 +216,7 @@ public static class UserMethodMappingExtractor
         }
 
         var (targetType, targetTypeNullability) = BuildTargetType(ctx, method, parameters.Source.Name);
-        return new UserImplementedMethodMapping(
+        var mapping = new UserImplementedMethodMapping(
             receiver,
             method,
             userMappingConfig.Default ?? isDefault,
@@ -226,6 +227,15 @@ public static class UserMethodMappingExtractor
             isExternal,
             targetTypeNullability
         );
+        if (
+            ObjectFactoryBuilder.IsWholeSourceDomainFactory(ctx, method)
+            && InlineExpressionMappingBuilder.TryBuildRuntimeDomainFactoryMapping(ctx, mapping) is { } inlinedMapping
+        )
+        {
+            return inlinedMapping;
+        }
+
+        return mapping;
     }
 
     private static IUserMapping? BuildGenericUserImplementedMapping(
@@ -344,6 +354,7 @@ public static class UserMethodMappingExtractor
             parameters.ReferenceHandler,
             ctx.SymbolAccessor.UpgradeNullable(methodSymbol.ReturnType),
             ctx.Configuration.Mapper.UseReferenceHandling,
+            ctx.SymbolAccessor.HasAttribute<MapToFactoryAttribute>(methodSymbol),
             ctx.AttributeAccessor.HasAttribute<MapDerivedTypeAttribute<object, object>>(methodSymbol)
                 || ctx.AttributeAccessor.HasAttribute<MapDerivedTypeAttribute>(methodSymbol)
         )

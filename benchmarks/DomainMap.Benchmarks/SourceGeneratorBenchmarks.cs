@@ -1,18 +1,16 @@
 using System.Runtime.Loader;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Order;
 using DomainMap.Abstractions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace DomainMap.Benchmarks;
 
-[ArtifactsPath("artifacts")]
 [MemoryDiagnoser]
 [CategoriesColumn]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-[Orderer(SummaryOrderPolicy.FastestToSlowest)]
+[Config(typeof(SourceGeneratorBenchmarkConfig))]
 public class SourceGeneratorBenchmarks
 {
     private const string DomainMapAttribute = "DomainMap.Abstractions.DomainMapper";

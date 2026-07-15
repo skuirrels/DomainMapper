@@ -132,7 +132,7 @@ internal static class ComparisonCodeParity
             var significantAttributes = method
                 .AttributeLists.SelectMany(x => x.Attributes)
                 .Where(IsPerformanceAttribute)
-                .Select(x => x.WithoutTrivia().NormalizeWhitespace(eol: "\n").ToFullString())
+                .Select(CanonicalizePerformanceAttribute)
                 .Order(StringComparer.Ordinal)
                 .ToArray();
 
@@ -149,6 +149,14 @@ internal static class ComparisonCodeParity
             return name.EndsWith("MethodImpl", StringComparison.Ordinal) || name.EndsWith("MethodImplAttribute", StringComparison.Ordinal);
         }
 
+        private static string CanonicalizePerformanceAttribute(AttributeSyntax attribute) =>
+            attribute
+                .WithoutTrivia()
+                .NormalizeWhitespace(eol: "\n")
+                .ToFullString()
+                .Replace("global::", string.Empty, StringComparison.Ordinal)
+                .Replace("System.Runtime.CompilerServices.", string.Empty, StringComparison.Ordinal);
+
         private static string JoinAttributesAndBody(IReadOnlyCollection<string> attributes, string body) =>
             attributes.Count == 0 ? body : string.Join("\n", [.. attributes, body]);
 
@@ -163,10 +171,17 @@ internal static class ComparisonCodeParity
         {
             var root = CSharpSyntaxTree.ParseText(source).GetCompilationUnitRoot();
             var mapperClasses = root.DescendantNodes().OfType<ClassDeclarationSyntax>().Where(x => x.Identifier.ValueText == className);
-            foreach (var method in mapperClasses.SelectMany(x => x.Members.OfType<MethodDeclarationSyntax>()))
+            foreach (var methodDeclaration in mapperClasses.SelectMany(x => x.Members.OfType<MethodDeclarationSyntax>()))
             {
-                if (method.Body != null || method.ExpressionBody != null)
-                    methods[method.Identifier.ValueText] = method;
+                var method = methodDeclaration;
+                var methodName = method.Identifier.ValueText;
+                if (methods.TryGetValue(methodName, out var declaration))
+                {
+                    method = method.WithAttributeLists(declaration.AttributeLists.AddRange(method.AttributeLists));
+                }
+
+                if (method.Body != null || method.ExpressionBody != null || method.AttributeLists.Count > 0)
+                    methods[methodName] = method;
             }
         }
 

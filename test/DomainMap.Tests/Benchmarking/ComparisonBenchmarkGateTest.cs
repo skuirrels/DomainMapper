@@ -188,6 +188,25 @@ public class ComparisonBenchmarkGateTest
     }
 
     [Fact]
+    public void RejectsAStatisticalDecisionWithoutTheConfiguredEvidenceFloor()
+    {
+        var report = WriteReportWithValues(("MapperlyFlat", [10d, 10, 10], 64), ("DomainMapFlat", [8d, 8, 8], 64));
+        var options = new ComparisonGateOptions(1.25, 0, 1, 0)
+        {
+            RequireFasterScenarios = new HashSet<string>(["*"], StringComparer.Ordinal),
+            MinimumReportCount = 2,
+            MinimumSampleCount = 4,
+        };
+
+        var result = ComparisonBenchmarkGate.Evaluate(report, options);
+
+        result.Passed.ShouldBeFalse();
+        var failure = result.Comparisons.ShouldHaveSingleItem().Failure.ShouldNotBeNull();
+        failure.ShouldContain("at least 2");
+        failure.ShouldContain("at least 4 per implementation");
+    }
+
+    [Fact]
     public void GeneratedCodeParityInlinesEquivalentFactoryWrappersAndDetectsCollectionDifference()
     {
         var domainMapGenerated = BuildGeneratedMapper("DomainMapBenchmarkMapper", "MapLine(source)");
@@ -242,6 +261,38 @@ public class ComparisonBenchmarkGateTest
 
         result.Scenarios.Single(x => x.Scenario == "Flat").Equivalent.ShouldBeFalse();
         result.Scenarios.Where(x => x.Scenario != "Flat").ShouldAllBe(x => x.Equivalent);
+    }
+
+    [Fact]
+    public void GeneratedCodeParityIncludesAttributesFromPartialMethodDeclarations()
+    {
+        var domainMapGenerated = BuildGeneratedMapper("DomainMapBenchmarkMapper", "MapLine(source)")
+            .Replace(
+                "public static int MapId(int source)",
+                "[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)] public static int MapId(int source)",
+                StringComparison.Ordinal
+            );
+        var mapperlyGenerated = BuildGeneratedMapper("MapperlyBenchmarkMapper", "MapLine(source)");
+        var declarations = """
+            partial class DomainMapBenchmarkMapper
+            {
+                private static int ToId(int value) => value;
+                private static int Factory(int value) => value;
+            }
+
+            partial class MapperlyBenchmarkMapper
+            {
+                private static int ToId(int value) => value;
+                private static int Factory(int value) => value;
+
+                [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+                public static partial int MapId(int source);
+            }
+            """;
+
+        var result = ComparisonCodeParity.Evaluate(domainMapGenerated, mapperlyGenerated, declarations);
+
+        result.Scenarios.Single(x => x.Scenario == "ValueObjectFactory").Equivalent.ShouldBeTrue();
     }
 
     private static string WriteReport(params (string Method, double Mean, double AllocatedBytes)[] benchmarks)

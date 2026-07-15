@@ -12,6 +12,43 @@ namespace DomainMap.Descriptors.MappingBuilders;
 public static class InlineExpressionMappingBuilder
 {
     /// <summary>
+    /// Inlines a local whole-source domain factory when doing so cannot duplicate evaluation of its input.
+    /// The target-owned factory or constructor inside the wrapper is preserved; only the mapper-owned wrapper call is removed.
+    /// </summary>
+    internal static UserImplementedInlinedExpressionMapping? TryBuildRuntimeDomainFactoryMapping(
+        SimpleMappingBuilderContext ctx,
+        UserImplementedMethodMapping mapping
+    )
+    {
+        if (mapping.IsExternal || mapping.AdditionalSourceParameters.Count > 0 || mapping.Method.Parameters is not [var methodParameter])
+            return null;
+
+        if (
+            mapping.Method.DeclaringSyntaxReferences is not [var methodSyntaxRef]
+            || methodSyntaxRef.GetSyntax()
+                is not MethodDeclarationSyntax { ParameterList.Parameters: [var sourceParameter] } methodDeclaration
+        )
+        {
+            return null;
+        }
+
+        var bodyExpression = TryGetBodyExpression(methodDeclaration);
+        if (bodyExpression == null)
+            return null;
+
+        var semanticModel = ctx.GetSemanticModel(methodDeclaration.SyntaxTree);
+        if (semanticModel == null || CountParameterReferences(bodyExpression, semanticModel, methodParameter) != 1)
+            return null;
+
+        var inlineRewriter = new InlineExpressionRewriter(semanticModel, static _ => null);
+        bodyExpression = (ExpressionSyntax?)bodyExpression.Accept(inlineRewriter);
+        if (bodyExpression == null || !inlineRewriter.CanBeInlined || inlineRewriter.MappingInvocations.Count > 0)
+            return null;
+
+        return new UserImplementedInlinedExpressionMapping(mapping, sourceParameter, inlineRewriter.MappingInvocations, bodyExpression);
+    }
+
+    /// <summary>
     /// Builds an inline expression delegate mapping for the given source and target types.
     /// This is used by both queryable projection mappings and expression mappings.
     /// </summary>
@@ -112,6 +149,12 @@ public static class InlineExpressionMappingBuilder
 
         return new UserImplementedInlinedExpressionMapping(mapping, sourceParameter, inlineRewriter.MappingInvocations, bodyExpression);
     }
+
+    private static int CountParameterReferences(ExpressionSyntax expression, SemanticModel semanticModel, IParameterSymbol parameter) =>
+        expression
+            .DescendantNodesAndSelf()
+            .OfType<IdentifierNameSyntax>()
+            .Count(node => SymbolEqualityComparer.Default.Equals(semanticModel.GetSymbolInfo(node).Symbol, parameter));
 
     private static ExpressionSyntax? TryGetBodyExpression(MethodDeclarationSyntax methodDeclaration)
     {

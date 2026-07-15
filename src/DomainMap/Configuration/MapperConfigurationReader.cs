@@ -18,6 +18,7 @@ public class MapperConfigurationReader
     private readonly GenericTypeChecker _genericTypeChecker;
     private readonly DiagnosticCollection _diagnostics;
     private readonly WellKnownTypes _types;
+    private MappingConfiguration? _mapperConfigurationWithoutDeepCloning;
 
     public MapperConfigurationReader(
         AttributeDataAccessor dataAccessor,
@@ -64,22 +65,29 @@ public class MapperConfigurationReader
 
     public MappingConfiguration BuildFor(MappingConfigurationReference reference, bool supportsDeepCloning)
     {
+        if (reference.Method is { } method && method.GetAttributes().IsDefaultOrEmpty)
+            return GetMapperConfiguration(supportsDeepCloning);
+
         if (_resolvedConfigurations.TryGetValue(reference, out var resolved))
         {
             return resolved;
         }
 
-        return BuildWithIncludedMappings([], reference, supportsDeepCloning);
+        var visitedMethods =
+            reference.Method != null && _dataAccessor.HasAttribute<IncludeMappingConfigurationAttribute>(reference.Method)
+                ? new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default)
+                : null;
+        return BuildWithIncludedMappings(visitedMethods, reference, supportsDeepCloning);
     }
 
     private MappingConfiguration BuildWithIncludedMappings(
-        HashSet<IMethodSymbol> visitedMethods,
+        HashSet<IMethodSymbol>? visitedMethods,
         MappingConfigurationReference reference,
         bool supportsDeepCloning
     )
     {
         if (reference.Method == null)
-            return supportsDeepCloning ? MapperConfiguration : MapperConfiguration with { UseDeepCloning = false };
+            return GetMapperConfiguration(supportsDeepCloning);
 
         var enumConfig = BuildEnumConfig(reference);
         var membersConfig = BuildMembersConfig(reference);
@@ -95,9 +103,18 @@ public class MapperConfigurationReader
             MapperConfiguration.SupportedFeatures
         );
 
-        configuration = IncludeConfigurations(configuration, visitedMethods, reference, supportsDeepCloning);
+        if (visitedMethods != null)
+            configuration = IncludeConfigurations(configuration, visitedMethods, reference, supportsDeepCloning);
         _resolvedConfigurations[reference] = configuration;
         return configuration;
+    }
+
+    private MappingConfiguration GetMapperConfiguration(bool supportsDeepCloning)
+    {
+        if (supportsDeepCloning || !MapperConfiguration.UseDeepCloning)
+            return MapperConfiguration;
+
+        return _mapperConfigurationWithoutDeepCloning ??= MapperConfiguration with { UseDeepCloning = false };
     }
 
     private MappingConfiguration IncludeConfigurations(

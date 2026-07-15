@@ -16,6 +16,15 @@ internal sealed class BalancedComparisonConfig : ManualConfig
     }
 }
 
+internal sealed class SourceGeneratorBenchmarkConfig : ManualConfig
+{
+    public SourceGeneratorBenchmarkConfig()
+    {
+        Orderer = new BalancedComparisonOrderer();
+        ArtifactsPath = Environment.GetEnvironmentVariable(BalancedComparisonConfig.ArtifactsEnvironmentVariable) ?? "artifacts";
+    }
+}
+
 internal sealed class BalancedComparisonOrderer : DefaultOrderer
 {
     internal const string OrderEnvironmentVariable = "DOMAINMAP_BENCHMARK_ORDER";
