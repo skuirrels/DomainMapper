@@ -90,7 +90,7 @@ jobs:
         if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks'
         env:
           DOMAINMAP_MAPPERLY_PARITY_REPORT: ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap-vs-Mapperly-parity.json
-          DOMAINMAP_MAPPERLY_FASTER_SCENARIOS: '*'
+          DOMAINMAP_MAPPERLY_FASTER_SCENARIOS: 'Flat'
           DOMAINMAP_MAPPERLY_MIN_REPORTS: '2'
           DOMAINMAP_MAPPERLY_MIN_SAMPLES: '6'
         run: >-

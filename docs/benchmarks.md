@@ -71,7 +71,9 @@ The benchmark workflow applies two complementary gates:
 
 - historical results fail when mean execution time exceeds the retained main-branch baseline by more than `1.25x`;
 - paired `ComparisonMappingBenchmarks` run in both implementation orders and aggregate BenchmarkDotNet's raw iteration samples by median;
-- scenarios with matching generated-code fingerprints are accepted as proven code parity, while every differentiated scenario must have a lower DomainMap median and a negative one-sided 95% upper confidence bound for DomainMap minus Mapperly;
+- scenarios with matching generated-code fingerprints are accepted as proven code parity;
+- shared GitHub-hosted runtime comparisons require flat mapping to have a lower DomainMap median and a negative one-sided 95% upper confidence bound, while the architecture-sensitive nested-list path remains subject to the `1.25x` regression limit;
+- the dedicated stable runtime gate requires every differentiated scenario to be statistically faster;
 - every runtime comparison run requires DomainMap allocated bytes to be equal to or lower than Mapperly, with no ratio or byte allowance;
 - shared GitHub-hosted `SourceGeneratorBenchmarks` record a non-blocking two-order cross-tool comparison because different shared x64 hosts cannot reliably prove a statistical winner; the blocking historical baseline still rejects a `1.25x` regression in either generator independently;
 - dedicated-runner `SourceGeneratorBenchmarks` require a lower median, a negative one-sided 95% upper confidence bound, and allocation no greater than the comparison implementation;
