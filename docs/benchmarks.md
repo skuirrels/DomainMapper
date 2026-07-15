@@ -61,7 +61,7 @@ The isolated Linux cold-generator gate passed: DomainMap measured 2.271 ms and 1
 ./scripts/run-stable-benchmarks.sh
 ```
 
-The script builds once, writes environment metadata, runs six pairs in alternating orders, proves generated-code parity, applies the runtime gate, runs the cold-generator comparison, and applies its statistical/allocation gate. Set `DOMAINMAP_STABLE_RESULT_ROOT` to choose the evidence directory.
+The script builds once, writes environment metadata, runs six runtime pairs in alternating orders, proves generated-code parity, applies the runtime gate, runs the cold-generator comparison in both implementation orders, and applies its statistical/allocation gate. Set `DOMAINMAP_STABLE_RESULT_ROOT` to choose the evidence directory.
 
 The manual `benchmark-stable` GitHub workflow runs the same script on a self-hosted runner labelled `linux` and `benchmark`. That runner should be dedicated, idle, fixed-power hardware. A release performance claim should use its retained 12-report artifact, not a shared GitHub-hosted runner or virtualized laptop result.
 
@@ -73,8 +73,9 @@ The benchmark workflow applies two complementary gates:
 - paired `ComparisonMappingBenchmarks` run in both implementation orders and aggregate BenchmarkDotNet's raw iteration samples by median;
 - scenarios with matching generated-code fingerprints are accepted as proven code parity, while every differentiated scenario must have a lower DomainMap median and a negative one-sided 95% upper confidence bound for DomainMap minus Mapperly;
 - every runtime comparison run requires DomainMap allocated bytes to be equal to or lower than Mapperly, with no ratio or byte allowance;
-- paired `SourceGeneratorBenchmarks` require a lower median, a negative one-sided 95% upper confidence bound, and allocation no greater than the comparison implementation;
-- the stable harness refuses a runtime decision with fewer than 12 reports or 36 raw samples per implementation and refuses a cold-generator decision with fewer than 20 samples.
+- shared GitHub-hosted `SourceGeneratorBenchmarks` run in both implementation orders as a regression guard, allowing at most `1.25x` median time and `1.10x` allocation because shared x64 runners cannot reliably prove a statistical winner;
+- dedicated-runner `SourceGeneratorBenchmarks` require a lower median, a negative one-sided 95% upper confidence bound, and allocation no greater than the comparison implementation;
+- the stable harness refuses a runtime decision with fewer than 12 reports or 36 raw samples per implementation and refuses a cold-generator decision with fewer than two reports or 40 samples.
 
 The paired gate writes `DomainMap-vs-Mapperly-gate.md` and `DomainMap-vs-Mapperly-gate.json` beside the BenchmarkDotNet output. Raw and derived benchmark artifacts are retained by GitHub Actions for 90 days. Main-branch baselines use immutable, run-specific cache keys with a prefix restore, so no personal access token is required to replace a cache.
 

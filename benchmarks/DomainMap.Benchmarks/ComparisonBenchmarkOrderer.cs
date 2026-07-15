@@ -20,6 +20,7 @@ internal sealed class SourceGeneratorBenchmarkConfig : ManualConfig
 {
     public SourceGeneratorBenchmarkConfig()
     {
+        Orderer = new BalancedComparisonOrderer();
         ArtifactsPath = Environment.GetEnvironmentVariable(BalancedComparisonConfig.ArtifactsEnvironmentVariable) ?? "artifacts";
     }
 }
