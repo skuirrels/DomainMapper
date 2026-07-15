@@ -21,7 +21,6 @@ public class UnsafeAccessorTest
     [Fact]
     public Task PrivateNestedNullablePropertyWithAmbiguousEqualityOperators()
     {
-        // https://github.com/riok/mapperly/issues/2316
         // the null check of the generic unsafe accessor receiver needs the cast too.
         var source = TestSourceBuilder.MapperWithBodyAndTypes(
             """

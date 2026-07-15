@@ -79,7 +79,7 @@ public partial struct SyntaxFactoryHelper
     /// Builds a <c>null</c> literal. If comparing <paramref name="type"/> against <c>null</c> using the operator
     /// <paramref name="operatorMetadataName"/> would be ambiguous (multiple user defined overloads), the literal is
     /// cast to the nullable type (e.g. <c>(global::Code?)null</c>) to avoid an ambiguous operator resolution (CS9342)
-    /// in the generated null check. See https://github.com/riok/mapperly/issues/2316.
+    /// in the generated null check.
     /// </summary>
     private static ExpressionSyntax NullLiteral(ITypeSymbol? type, string operatorMetadataName) =>
         type?.HasAmbiguousNullComparisonOperator(operatorMetadataName) == true

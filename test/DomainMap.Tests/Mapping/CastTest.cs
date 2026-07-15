@@ -423,7 +423,6 @@ public class CastTest
     [Fact]
     public void NullableSourceWithMultipleUserDefinedEqualityOperatorsShouldCastNullLiteral()
     {
-        // https://github.com/riok/mapperly/issues/2316
         // the null check needs an explicit cast of the null literal,
         // otherwise the user defined equality operators lead to an ambiguous operator resolution (CS9342).
         var source = TestSourceBuilder.Mapping(
@@ -469,7 +468,6 @@ public class CastTest
     [Fact]
     public Task NullableSourceWithMultipleUserDefinedEqualityOperatorsShouldCastNullLiteralInProjection()
     {
-        // https://github.com/riok/mapperly/issues/2316
         // the cast also needs to be emitted for queryable projection expressions.
         var source = TestSourceBuilder.Mapping(
             "System.Linq.IQueryable<A>",
@@ -498,7 +496,6 @@ public class CastTest
     [Fact]
     public void NullableSourceWithInheritedEqualityOperatorsShouldCastNullLiteral()
     {
-        // https://github.com/riok/mapperly/issues/2316
         // the ambiguous equality operators may be declared on a base type.
         var source = TestSourceBuilder.Mapping(
             "A",

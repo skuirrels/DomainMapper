@@ -972,7 +972,6 @@ public class ObjectPropertyNullableTest
     [Fact]
     public Task NullableToNullablePropertyWithAnotherNullableToNonNullableMappingShouldDirectAssign()
     {
-        // see https://github.com/riok/mapperly/issues/1089
         var source = TestSourceBuilder.MapperWithBodyAndTypes(
             """
             public static partial ADest? Map(A? source);
@@ -1093,7 +1092,6 @@ public class ObjectPropertyNullableTest
     [Fact]
     public void MaybeNullSourceFromExternalAssemblyToNonNullableTargetProperty()
     {
-        // https://github.com/riok/mapperly/issues/2192
         // Roslyn exposes the MaybeNullAttribute of a property loaded from metadata (referenced assembly)
         // on the return value of the getter instead of the property itself.
         var aSource = TestSourceBuilder.SyntaxTree(
@@ -1134,7 +1132,6 @@ public class ObjectPropertyNullableTest
     [Fact]
     public void NullableSourceToAllowNullTargetPropertyFromExternalAssembly()
     {
-        // https://github.com/riok/mapperly/issues/2192
         // Roslyn exposes the AllowNullAttribute of a property loaded from metadata (referenced assembly)
         // on the value parameter of the setter instead of the property itself.
         var bSource = TestSourceBuilder.SyntaxTree(

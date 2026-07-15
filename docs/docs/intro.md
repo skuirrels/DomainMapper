@@ -9,7 +9,7 @@ description: Introduction into DomainMap.
 
 DomainMap is a compile-time mapper for .NET with a domain-driven design bias. It generates readable C# without runtime reflection and keeps aggregate construction, value-object validation, and invariants in user-owned domain code.
 
-DomainMap is an independent Apache-2.0 derivative of [Mapperly](https://github.com/riok/mapperly). It is not affiliated with or endorsed by the Mapperly maintainers. Its domain-first API keeps construction and aggregate invariants under domain ownership.
+Its domain-first API keeps construction and aggregate invariants under domain ownership.
 
 ## The domain boundary is the API
 

@@ -145,7 +145,6 @@ public static class InlineExpressionMappingBuilder
         // the non-nullable variant is used here.
         // Otherwise, this would lead to a select like source.Select(x => x == null ? throw ... : new ...)
         // which is not expected in this case.
-        // see also https://github.com/riok/mapperly/issues/1196
         sourceType = ctx.SymbolAccessor.NonNullableIfNullableReferenceTypesDisabled(sourceType, ctx.UserMapping?.SourceType);
         targetType = ctx.SymbolAccessor.NonNullableIfNullableReferenceTypesDisabled(targetType, ctx.UserMapping?.TargetType);
 

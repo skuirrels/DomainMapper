@@ -78,7 +78,6 @@ internal sealed class MembersMappingState(
             .Select(targetMembers.GetValueOrDefault)
             .WhereNotNull()
             // Collect the enumeration since the source may be modified.
-            // For more context see https://github.com/riok/mapperly/issues/1403#issuecomment-2267571805.
             .ToList();
     }
 

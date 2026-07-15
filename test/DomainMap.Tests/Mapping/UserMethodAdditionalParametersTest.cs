@@ -7,7 +7,6 @@ public class UserMethodAdditionalParametersTest
     [Fact]
     public Task UserMethodWithAdditionalParameterShouldUseNullableUserMappingForNullableMember()
     {
-        // Regression test for https://github.com/riok/mapperly/issues/2275
         // When a mapping method has additional parameters, member mappings with nullable
         // source/target types should still resolve to user-defined mappings with matching
         // nullability instead of stripping nullability and adding a null check.
