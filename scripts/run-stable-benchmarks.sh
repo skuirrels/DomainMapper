@@ -22,7 +22,7 @@ mkdir -p "$result_root"
     echo "benchmark_job=$job"
     echo "kernel=$(uname -a)"
     dotnet --version | sed 's/^/dotnet_sdk=/'
-} > "$result_root/environment.txt"
+} >"$result_root/environment.txt"
 
 dotnet build "$benchmark_project" --configuration Release
 
@@ -40,9 +40,9 @@ for ((pair = 1; pair <= pairs; pair++)); do
     for order in mapperly-first domainmap-first; do
         artifacts="$result_root/runtime/pair-$pair/$order"
         DOMAINMAP_BENCHMARK_ORDER="$order" \
-        DOMAINMAP_BENCHMARK_ARTIFACTS="$artifacts" \
+            DOMAINMAP_BENCHMARK_ARTIFACTS="$artifacts" \
             dotnet run --no-build --configuration Release --project "$benchmark_project" -- \
-                --exporters json --job "$job" --filter '*ComparisonMappingBenchmarks*'
+            --exporters json --job "$job" --filter '*ComparisonMappingBenchmarks*'
         reports+=("$artifacts/results/DomainMap.Benchmarks.ComparisonMappingBenchmarks-report-full-compressed.json")
     done
 done
@@ -50,25 +50,25 @@ done
 minimum_reports=$((pairs * 2))
 minimum_samples=$((minimum_reports * 3))
 DOMAINMAP_MAPPERLY_PARITY_REPORT="$parity_report" \
-DOMAINMAP_MAPPERLY_FASTER_SCENARIOS='*' \
-DOMAINMAP_MAPPERLY_MIN_REPORTS="$minimum_reports" \
-DOMAINMAP_MAPPERLY_MIN_SAMPLES="$minimum_samples" \
-DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO='1.00' \
-DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES='0' \
+    DOMAINMAP_MAPPERLY_FASTER_SCENARIOS='*' \
+    DOMAINMAP_MAPPERLY_MIN_REPORTS="$minimum_reports" \
+    DOMAINMAP_MAPPERLY_MIN_SAMPLES="$minimum_samples" \
+    DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO='1.00' \
+    DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES='0' \
     dotnet run --no-build --configuration Release --project "$benchmark_project" -- \
-        --check-comparison "${reports[@]}"
+    --check-comparison "${reports[@]}"
 
 source_artifacts="$result_root/source-generator"
 DOMAINMAP_BENCHMARK_ARTIFACTS="$source_artifacts" \
     dotnet run --no-build --configuration Release --project "$benchmark_project" -- \
-        --exporters json --filter '*SourceGeneratorBenchmarks*'
+    --exporters json --filter '*SourceGeneratorBenchmarks*'
 
 source_report="$source_artifacts/results/DomainMap.Benchmarks.SourceGeneratorBenchmarks-report-full-compressed.json"
 DOMAINMAP_MAPPERLY_FASTER_SCENARIOS='ColdGeneration' \
-DOMAINMAP_MAPPERLY_MIN_SAMPLES='20' \
-DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO='1.00' \
-DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES='0' \
+    DOMAINMAP_MAPPERLY_MIN_SAMPLES='20' \
+    DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO='1.00' \
+    DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES='0' \
     dotnet run --no-build --configuration Release --project "$benchmark_project" -- \
-        --check-comparison "$source_report"
+    --check-comparison "$source_report"
 
 echo "Stable benchmark evidence: $result_root"
