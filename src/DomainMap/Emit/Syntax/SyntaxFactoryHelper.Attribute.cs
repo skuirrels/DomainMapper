@@ -6,6 +6,7 @@ namespace DomainMap.Emit.Syntax;
 
 public partial struct SyntaxFactoryHelper
 {
+    private const int CachedAttributeIndentationCount = 8;
     private const string UnsafeAccessorName = "global::System.Runtime.CompilerServices.UnsafeAccessor";
     private const string UnsafeAccessorKindName = "global::System.Runtime.CompilerServices.UnsafeAccessorKind";
     private const string UnsafeAccessorNameArgument = "Name";
@@ -13,6 +14,19 @@ public partial struct SyntaxFactoryHelper
     private const string MethodImplOptionsName = "global::System.Runtime.CompilerServices.MethodImplOptions";
 
     private static readonly IdentifierNameSyntax _unsafeAccessorKindName = IdentifierName(UnsafeAccessorKindName);
+
+    private static class AttributeCache
+    {
+        public static readonly AttributeListSyntax[] AggressiveInlining = Enumerable
+            .Range(0, CachedAttributeIndentationCount)
+            .Select(BuildAggressiveInliningAttribute)
+            .ToArray();
+
+        public static readonly AttributeListSyntax[] GeneratedCode = Enumerable
+            .Range(0, CachedAttributeIndentationCount)
+            .Select(BuildGeneratedCodeAttribute)
+            .ToArray();
+    }
 
     public AttributeListSyntax UnsafeAccessorAttribute(UnsafeAccessorType type, string? name = null)
     {
@@ -32,7 +46,18 @@ public partial struct SyntaxFactoryHelper
     }
 
     public AttributeListSyntax AggressiveInliningAttribute() =>
-        Attribute(MethodImplName, MemberAccess(IdentifierName(MethodImplOptionsName), IdentifierName("AggressiveInlining")));
+        Indentation < CachedAttributeIndentationCount
+            ? AttributeCache.AggressiveInlining[Indentation]
+            : BuildAggressiveInliningAttribute(Indentation);
+
+    private static AttributeListSyntax BuildAggressiveInliningAttribute(int indentation)
+    {
+        var syntaxFactory = new SyntaxFactoryHelper(indentation, default);
+        return syntaxFactory.Attribute(
+            MethodImplName,
+            MemberAccess(IdentifierName(MethodImplOptionsName), IdentifierName("AggressiveInlining"))
+        );
+    }
 
     private AttributeListSyntax Attribute(string name, params ExpressionSyntax[] arguments)
     {

@@ -19,6 +19,7 @@ namespace DomainMap.Configuration;
 public class AttributeDataAccessor(SymbolAccessor symbolAccessor)
 {
     private const char FullNameOfPrefix = '@';
+    private Dictionary<FirstAttributeCacheKey, object>? _firstAttributeCache;
 
     public TAttribute AccessSingle<TAttribute>(ISymbol symbol)
         where TAttribute : Attribute => AccessSingle<TAttribute, TAttribute>(symbol);
@@ -28,11 +29,24 @@ public class AttributeDataAccessor(SymbolAccessor symbolAccessor)
         where TData : notnull => Access<TAttribute, TData>(symbol).Single();
 
     public TAttribute? AccessFirstOrDefault<TAttribute>(ISymbol symbol)
-        where TAttribute : Attribute => Access<TAttribute, TAttribute>(symbol).FirstOrDefault();
+        where TAttribute : Attribute => AccessFirstOrDefault<TAttribute, TAttribute>(symbol);
 
     public TData? AccessFirstOrDefault<TAttribute, TData>(ISymbol symbol)
         where TAttribute : Attribute
-        where TData : notnull => Access<TAttribute, TData>(symbol).FirstOrDefault();
+        where TData : notnull
+    {
+        var key = new FirstAttributeCacheKey(symbol, typeof(TAttribute), typeof(TData));
+        if (_firstAttributeCache?.TryGetValue(key, out var cached) == true)
+            return (TData)cached;
+
+        var value = Access<TAttribute, TData>(symbol).FirstOrDefault();
+        if (value is not null)
+        {
+            (_firstAttributeCache ??= new(FirstAttributeCacheKeyComparer.Instance))[key] = value;
+        }
+
+        return value;
+    }
 
     public bool HasAttribute<TAttribute>(ISymbol symbol)
         where TAttribute : Attribute => symbolAccessor.HasAttribute<TAttribute>(symbol);
@@ -95,6 +109,21 @@ public class AttributeDataAccessor(SymbolAccessor symbolAccessor)
     {
         var generated = AccessFirstOrDefault<GeneratedCodeAttribute>(method);
         return string.Equals(generated?.Tool, DomainMapGeneratedCodeAttribute.GeneratorToolName, StringComparison.Ordinal);
+    }
+
+    private readonly record struct FirstAttributeCacheKey(ISymbol Symbol, Type AttributeType, Type DataType);
+
+    private sealed class FirstAttributeCacheKeyComparer : IEqualityComparer<FirstAttributeCacheKey>
+    {
+        public static readonly FirstAttributeCacheKeyComparer Instance = new();
+
+        public bool Equals(FirstAttributeCacheKey x, FirstAttributeCacheKey y) =>
+            SymbolEqualityComparer.Default.Equals(x.Symbol, y.Symbol)
+            && ReferenceEquals(x.AttributeType, y.AttributeType)
+            && ReferenceEquals(x.DataType, y.DataType);
+
+        public int GetHashCode(FirstAttributeCacheKey obj) =>
+            HashCode.Combine(SymbolEqualityComparer.Default.GetHashCode(obj.Symbol), obj.AttributeType, obj.DataType);
     }
 
     internal static TData Access<TAttribute, TData>(AttributeData attrData, SymbolAccessor? symbolAccessor = null)

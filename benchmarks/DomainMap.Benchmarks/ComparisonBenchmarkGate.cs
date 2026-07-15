@@ -20,6 +20,10 @@ internal sealed record ComparisonGateOptions(
 
     public double ConfidenceZScore { get; init; } = 1.645;
 
+    public int MinimumReportCount { get; init; } = 1;
+
+    public int MinimumSampleCount { get; init; } = 1;
+
     public static ComparisonGateOptions FromEnvironment()
     {
         var parityReportPath = Environment.GetEnvironmentVariable(ParityReportEnvironmentVariable);
@@ -37,6 +41,8 @@ internal sealed record ComparisonGateOptions(
             ProvenParityScenarios = parityScenarios,
             RequireFasterScenarios = ReadSet(FasterScenariosEnvironmentVariable),
             ConfidenceZScore = ReadDouble("DOMAINMAP_MAPPERLY_CONFIDENCE_Z", 1.645),
+            MinimumReportCount = ReadInt("DOMAINMAP_MAPPERLY_MIN_REPORTS", 1),
+            MinimumSampleCount = ReadInt("DOMAINMAP_MAPPERLY_MIN_SAMPLES", 1),
         };
     }
 
@@ -49,6 +55,12 @@ internal sealed record ComparisonGateOptions(
     {
         var value = Environment.GetEnvironmentVariable(name);
         return value == null ? defaultValue : double.Parse(value, CultureInfo.InvariantCulture);
+    }
+
+    private static int ReadInt(string name, int defaultValue)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        return value == null ? defaultValue : int.Parse(value, CultureInfo.InvariantCulture);
     }
 }
 
@@ -163,6 +175,19 @@ internal static class ComparisonBenchmarkGate
         var mapperlyAllocatedBytes = pairedRuns.Max(x => x.Mapperly.AllocatedBytes);
         var domainMapAllocatedBytes = pairedRuns.Max(x => x.DomainMap.AllocatedBytes);
         var failures = new List<string>();
+
+        if (pairedRuns.Count < options.MinimumReportCount)
+        {
+            failures.Add($"only {pairedRuns.Count} reports were provided; at least {options.MinimumReportCount} are required");
+        }
+
+        if (mapperlyValues.Length < options.MinimumSampleCount || domainMapValues.Length < options.MinimumSampleCount)
+        {
+            failures.Add(
+                $"only {mapperlyValues.Length}:{domainMapValues.Length} raw samples were provided; "
+                    + $"at least {options.MinimumSampleCount} per implementation are required"
+            );
+        }
 
         string expectation;
         if (options.ProvenParityScenarios.Contains(scenario))

@@ -27,7 +27,32 @@ public class MapToFactoryTest
                 var target = global::Order.Place(global::OrderId.Create(source.Id), global::CustomerName.Create(source.CustomerName), global::Money.Create(source.Total));
                 return target;
                 """
-            );
+            )
+            .HaveMethodAttribute("Map", "global::System.Runtime.CompilerServices.MethodImpl");
+    }
+
+    [Fact]
+    public void DoesNotInlineOrdinaryMappingsWhichInvokeNestedMappings()
+    {
+        var source = TestSourceBuilder.MapperWithBodyAndTypes(
+            "partial B Map(A source);",
+            "record A(C Value);",
+            "record B(D Value);",
+            "record C(string Value);",
+            "record D(string Value);"
+        );
+
+        TestHelper
+            .GenerateMapper(source)
+            .Should()
+            .HaveMethodBody(
+                "Map",
+                """
+                var target = new global::B(MapToD(source.Value));
+                return target;
+                """
+            )
+            .NotHaveMethodAttribute("Map", "global::System.Runtime.CompilerServices.MethodImpl");
     }
 
     [Fact]

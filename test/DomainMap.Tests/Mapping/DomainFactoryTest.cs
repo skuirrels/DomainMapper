@@ -107,7 +107,33 @@ public class DomainFactoryTest
             .Should()
             .HaveSingleMethodBody(
                 """
-                var target = Create(CreateOrderId(source.Id));
+                var target = Create(global::OrderId.Create(source.Id));
+                return target;
+                """
+            );
+    }
+
+    [Fact]
+    public void DoesNotInlineWholeSourceFactoryWhenItWouldDuplicateInputEvaluation()
+    {
+        var source = TestSourceBuilder.MapperWithBodyAndTypes(
+            """
+            [DomainFactory(Input = DomainFactoryInput.Source)]
+            private ValuePair CreatePair(int value) => new(value, value);
+
+            partial B Map(A source);
+            """,
+            "record A(int Value);",
+            "record ValuePair(int First, int Second);",
+            "record B(ValuePair Value);"
+        );
+
+        TestHelper
+            .GenerateMapper(source)
+            .Should()
+            .HaveSingleMethodBody(
+                """
+                var target = new global::B(CreatePair(source.Value));
                 return target;
                 """
             );

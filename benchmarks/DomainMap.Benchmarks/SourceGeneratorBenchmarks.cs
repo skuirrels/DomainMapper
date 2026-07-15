@@ -8,11 +8,11 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace DomainMap.Benchmarks;
 
-[ArtifactsPath("artifacts")]
 [MemoryDiagnoser]
 [CategoriesColumn]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
+[Config(typeof(SourceGeneratorBenchmarkConfig))]
 public class SourceGeneratorBenchmarks
 {
     private const string DomainMapAttribute = "DomainMap.Abstractions.DomainMapper";
