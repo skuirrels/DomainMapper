@@ -5,6 +5,7 @@ namespace DomainMap.IntegrationTests.Mapper
     public static partial class DeepCloningMapper
     {
         [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public static partial global::DomainMap.IntegrationTests.Models.IdObject Copy(global::DomainMap.IntegrationTests.Models.IdObject src)
         {
             var target = new global::DomainMap.IntegrationTests.Models.IdObject();
@@ -114,8 +115,9 @@ namespace DomainMap.IntegrationTests.Mapper
                 target.ExistingSortedSet.Add(item2);
             }
             target.ExistingList.Capacity = src.ExistingList.Count + target.ExistingList.Count;
-            foreach (var item3 in src.ExistingList)
+            for (var i = 0; i < src.ExistingList.Count; i++)
             {
+                var item3 = src.ExistingList[i];
                 target.ExistingList.Add(item3);
             }
             target.ISet = global::System.Linq.Enumerable.ToHashSet(src.ISet);

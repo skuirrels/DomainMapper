@@ -9,6 +9,7 @@ namespace DomainMap.IntegrationTests.Mapper
             public static partial class NestedMapper
             {
                 [global::System.CodeDom.Compiler.GeneratedCode("DomainMap", "0.0.1.0")]
+                [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
                 public static partial decimal ToDecimal(int value)
                 {
                     return (decimal)value;
