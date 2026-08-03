@@ -31,12 +31,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-      - uses: github/codeql-action/init@v4
+      - uses: github/codeql-action/init@v4.37.4
         with:
           languages: ${{ matrix.language }}
       - uses: actions/setup-dotnet@v5
       - run: dotnet build
-      - uses: github/codeql-action/analyze@v4
+      - uses: github/codeql-action/analyze@v4.37.4
         with:
           output: ${{ runner.temp }}/codeql-results
           upload: ${{ github.event.repository.private && 'never' || 'always' }}
