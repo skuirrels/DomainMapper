@@ -39,7 +39,7 @@ on:
         required: false
         type: string
         default: '0.0.1-dev'
-        description: The version of DomainMap to be referenced from the documentation
+        description: The version of DomainMapper to be referenced from the documentation
   pull_request:
     branches:
       - '**'
@@ -68,14 +68,14 @@ jobs:
       - run: npm run build
         working-directory: ./docs
         env:
-          DOMAINMAP_VERSION: ${{ inputs.version }}
+          DOMAINMAPPER_VERSION: ${{ inputs.version }}
           ENVIRONMENT: ${{ inputs.environment }}
       # run lint after build, as generated files may be imported which cannot be found otherwise
       - run: npm run lint
         working-directory: ./docs
       - uses: actions/upload-artifact@v7
         with:
-          name: domainmap-docs
+          name: domainmapper-docs
           path: 'docs/build'
   deploy:
     if: ${{ inputs.deploy }}
@@ -94,7 +94,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: domainmap-docs
+          name: domainmapper-docs
           path: 'docs/build'
       # replace stable environment name with main
       # cf pages only recognizes main as production branch
@@ -113,6 +113,6 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: domainmap
+          projectName: domainmapper
           branch: ${{ steps.cf-pages-branch-name.outputs.result }}
           directory: 'docs/build'

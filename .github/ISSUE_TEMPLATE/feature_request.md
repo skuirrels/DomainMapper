@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for DomainMap
+about: Suggest an idea for DomainMapper
 title: ''
 labels: 'enhancement'
 assignees: ''

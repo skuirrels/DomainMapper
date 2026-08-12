@@ -31,15 +31,15 @@ permissions:
   pull-requests: write
 
 env:
-  BENCHMARKS_PATH: 'benchmarks/DomainMap.Benchmarks'
-  BENCHMARK_RESULT_DIR: 'benchmarks/DomainMap.Benchmarks/artifacts/results'
-  BENCHMARK_REVERSED_RESULT_DIR: 'benchmarks/DomainMap.Benchmarks/artifacts/domainmap-first/results'
+  BENCHMARKS_PATH: 'benchmarks/DomainMapper.Benchmarks'
+  BENCHMARK_RESULT_DIR: 'benchmarks/DomainMapper.Benchmarks/artifacts/results'
+  BENCHMARK_REVERSED_RESULT_DIR: 'benchmarks/DomainMapper.Benchmarks/artifacts/domainmapper-first/results'
   BENCHMARK_BASELINE_DIR: './benchmark-results'
   BENCHMARK_BASELINE_FILE: './benchmark-results/benchmark-baseline-report.json'
-  DOMAINMAP_MAX_MAPPERLY_TIME_RATIO: '1.25'
-  DOMAINMAP_MAPPERLY_TIME_SLACK_NS: '1'
-  DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO: '1.00'
-  DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES: '0'
+  DOMAINMAPPER_MAX_MAPPERLY_TIME_RATIO: '1.25'
+  DOMAINMAPPER_MAPPERLY_TIME_SLACK_NS: '1'
+  DOMAINMAPPER_MAX_MAPPERLY_ALLOCATION_RATIO: '1.00'
+  DOMAINMAPPER_MAPPERLY_ALLOCATION_SLACK_BYTES: '0'
 
 jobs:
   benchmark:
@@ -58,26 +58,26 @@ jobs:
       - name: Run ${{ matrix.BENCHMARK_NAME }}
         working-directory: ${{ env.BENCHMARKS_PATH }}
         env:
-          DOMAINMAP_BENCHMARK_ORDER: mapperly-first
-          DOMAINMAP_BENCHMARK_ARTIFACTS: artifacts
+          DOMAINMAPPER_BENCHMARK_ORDER: mapperly-first
+          DOMAINMAPPER_BENCHMARK_ARTIFACTS: artifacts
         run: dotnet run --exporters json --configuration Release --filter '*.${{ matrix.BENCHMARK_NAME }}.*'
-      - name: Run comparison with DomainMap first
+      - name: Run comparison with DomainMapper first
         if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks' || matrix.BENCHMARK_NAME == 'SourceGeneratorBenchmarks'
         working-directory: ${{ env.BENCHMARKS_PATH }}
         env:
-          DOMAINMAP_BENCHMARK_ORDER: domainmap-first
-          DOMAINMAP_BENCHMARK_ARTIFACTS: artifacts/domainmap-first
+          DOMAINMAPPER_BENCHMARK_ORDER: domainmapper-first
+          DOMAINMAPPER_BENCHMARK_ARTIFACTS: artifacts/domainmapper-first
         run: dotnet run --exporters json --configuration Release --filter '*.${{ matrix.BENCHMARK_NAME }}.*'
       - name: Prove generated runtime parity
         if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks'
         run: >-
           dotnet run --no-build --configuration Release
-          --project ${{ env.BENCHMARKS_PATH }}/DomainMap.Benchmarks.csproj --
+          --project ${{ env.BENCHMARKS_PATH }}/DomainMapper.Benchmarks.csproj --
           --write-comparison-parity
-          artifacts/obj/DomainMap.Benchmarks/release/generated/DomainMap/DomainMap.DomainMapGenerator/DomainMapBenchmarkMapper.g.cs
-          artifacts/obj/DomainMap.Benchmarks/release/generated/Riok.Mapperly/Riok.Mapperly.MapperGenerator/MapperlyBenchmarkMapper.g.cs
+          artifacts/obj/DomainMapper.Benchmarks/release/generated/DomainMapper/DomainMapper.DomainMapperGenerator/DomainMapperBenchmarkMapper.g.cs
+          artifacts/obj/DomainMapper.Benchmarks/release/generated/Riok.Mapperly/Riok.Mapperly.MapperGenerator/MapperlyBenchmarkMapper.g.cs
           ${{ env.BENCHMARKS_PATH }}/ComparisonMappingBenchmarks.cs
-          ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap-vs-Mapperly-parity.json
+          ${{ env.BENCHMARK_RESULT_DIR }}/DomainMapper-vs-Mapperly-parity.json
       - name: Restore baseline results
         uses: actions/cache/restore@v5
         id: cache-baseline-results-restore
@@ -89,31 +89,31 @@ jobs:
       - name: Enforce Mapperly parity
         if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks'
         env:
-          DOMAINMAP_MAPPERLY_PARITY_REPORT: ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap-vs-Mapperly-parity.json
-          DOMAINMAP_MAPPERLY_FASTER_SCENARIOS: 'Flat'
-          DOMAINMAP_MAPPERLY_MIN_REPORTS: '2'
-          DOMAINMAP_MAPPERLY_MIN_SAMPLES: '6'
+          DOMAINMAPPER_MAPPERLY_PARITY_REPORT: ${{ env.BENCHMARK_RESULT_DIR }}/DomainMapper-vs-Mapperly-parity.json
+          DOMAINMAPPER_MAPPERLY_FASTER_SCENARIOS: 'Flat'
+          DOMAINMAPPER_MAPPERLY_MIN_REPORTS: '2'
+          DOMAINMAPPER_MAPPERLY_MIN_SAMPLES: '6'
         run: >-
           dotnet run --no-build --configuration Release
-          --project ${{ env.BENCHMARKS_PATH }}/DomainMap.Benchmarks.csproj --
+          --project ${{ env.BENCHMARKS_PATH }}/DomainMapper.Benchmarks.csproj --
           --check-comparison
-          ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
-          ${{ env.BENCHMARK_REVERSED_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
+          ${{ env.BENCHMARK_RESULT_DIR }}/DomainMapper.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
+          ${{ env.BENCHMARK_REVERSED_RESULT_DIR }}/DomainMapper.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
       - name: Record hosted source-generator comparison
         if: matrix.BENCHMARK_NAME == 'SourceGeneratorBenchmarks'
         continue-on-error: true
         env:
-          DOMAINMAP_MAPPERLY_TIME_SLACK_NS: '0'
-          DOMAINMAP_MAPPERLY_MIN_REPORTS: '2'
-          DOMAINMAP_MAPPERLY_MIN_SAMPLES: '24'
-          DOMAINMAP_MAX_MAPPERLY_ALLOCATION_RATIO: '1.10'
-          DOMAINMAP_MAPPERLY_ALLOCATION_SLACK_BYTES: '0'
+          DOMAINMAPPER_MAPPERLY_TIME_SLACK_NS: '0'
+          DOMAINMAPPER_MAPPERLY_MIN_REPORTS: '2'
+          DOMAINMAPPER_MAPPERLY_MIN_SAMPLES: '24'
+          DOMAINMAPPER_MAX_MAPPERLY_ALLOCATION_RATIO: '1.10'
+          DOMAINMAPPER_MAPPERLY_ALLOCATION_SLACK_BYTES: '0'
         run: >-
           dotnet run --no-build --configuration Release
-          --project ${{ env.BENCHMARKS_PATH }}/DomainMap.Benchmarks.csproj --
+          --project ${{ env.BENCHMARKS_PATH }}/DomainMapper.Benchmarks.csproj --
           --check-comparison
-          ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
-          ${{ env.BENCHMARK_REVERSED_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
+          ${{ env.BENCHMARK_RESULT_DIR }}/DomainMapper.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
+          ${{ env.BENCHMARK_REVERSED_RESULT_DIR }}/DomainMapper.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
       - name: Compare benchmark result
         uses: rhysd/github-action-benchmark@v1
         with:
@@ -121,7 +121,7 @@ jobs:
           tool: benchmarkdotnet
           external-data-json-path: ${{ env.BENCHMARK_BASELINE_FILE }}
           output-file-path: >-
-            ${{ env.BENCHMARK_RESULT_DIR }}/DomainMap.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
+            ${{ env.BENCHMARK_RESULT_DIR }}/DomainMapper.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
           alert-threshold: '125%'
           fail-threshold: '125%'
           summary-always: true

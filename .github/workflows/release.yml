@@ -54,7 +54,7 @@ jobs:
       - name: build release
         run: ./build/package.sh
         env:
-          DOMAINMAP_ENVIRONMENT: ${{ github.event.release.prerelease && 'next' || 'stable' }}
+          DOMAINMAPPER_ENVIRONMENT: ${{ github.event.release.prerelease && 'next' || 'stable' }}
           RELEASE_NOTES: ${{ steps.release-notes-text.outputs.content }}
           RELEASE_VERSION: ${{ steps.extract-version.outputs.RELEASE_VERSION }}
       - name: publish nuget

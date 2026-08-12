@@ -7,10 +7,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Version>0.0.1-dev</Version>
-    <Authors>DomainMap Contributors; Mapperly Contributors; Lars Tönz; Manuel Allenspach</Authors>
+    <Authors>DomainMapper Contributors</Authors>
     <!-- release environment constants -->
-    <DefineConstants Condition="'$(DOMAINMAP_ENVIRONMENT)' == 'next'">$(DefineConstants);ENV_NEXT</DefineConstants>
-    <DefineConstants Condition="'$(DOMAINMAP_ENVIRONMENT)' == 'stable'">$(DefineConstants);ENV_STABLE</DefineConstants>
-    <DefineConstants Condition="'$(DOMAINMAP_ENVIRONMENT)' == ''">$(DefineConstants);ENV_LOCAL</DefineConstants>
+    <DefineConstants Condition="'$(DOMAINMAPPER_ENVIRONMENT)' == 'next'">$(DefineConstants);ENV_NEXT</DefineConstants>
+    <DefineConstants Condition="'$(DOMAINMAPPER_ENVIRONMENT)' == 'stable'">$(DefineConstants);ENV_STABLE</DefineConstants>
+    <DefineConstants Condition="'$(DOMAINMAPPER_ENVIRONMENT)' == ''">$(DefineConstants);ENV_LOCAL</DefineConstants>
   </PropertyGroup>
 </Project>

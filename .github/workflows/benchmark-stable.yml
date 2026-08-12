@@ -22,14 +22,14 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Run stable balanced comparison
         env:
-          DOMAINMAP_BENCHMARK_PAIRS: '6'
-          DOMAINMAP_STABLE_RESULT_ROOT: ${{ runner.temp }}/domainmap-stable
+          DOMAINMAPPER_BENCHMARK_PAIRS: '6'
+          DOMAINMAPPER_STABLE_RESULT_ROOT: ${{ runner.temp }}/domainmapper-stable
         run: ./scripts/run-stable-benchmarks.sh
       - name: Retain stable evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: benchmark-stable-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ runner.temp }}/domainmap-stable/**
+          path: ${{ runner.temp }}/domainmapper-stable/**
           if-no-files-found: error
           retention-days: 90

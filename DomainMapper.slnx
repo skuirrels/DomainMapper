@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/DomainMapper.Benchmarks/DomainMapper.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/DomainMapper.Sample/DomainMapper.Sample.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/DomainMapper.Abstractions/DomainMapper.Abstractions.csproj" />
+    <Project Path="src/DomainMapper/DomainMapper.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/DomainMapper.Tests/DomainMapper.Tests.csproj" />
+  </Folder>
+</Solution>

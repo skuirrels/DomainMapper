@@ -49,4 +49,4 @@ jobs:
           # slnx files: Usually edited by the IDE
           # AnalyzerReleases.Shipped.md and Analyzer.Unshipped.md: their structure is predefined by its analyzer
           # _snapshots: Snapshots are generated and should not be linted
-          FILTER_REGEX_EXCLUDE: 'LICENSE|.*.slnx|src/DomainMap/AnalyzerReleases\..*\.md|.*_snapshots.*'
+          FILTER_REGEX_EXCLUDE: 'LICENSE|.*.slnx|src/DomainMapper/AnalyzerReleases\..*\.md|.*_snapshots.*'

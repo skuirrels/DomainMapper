@@ -1,25 +1,15 @@
----
-sidebar_position: 1
-description: Create your first mapper with DomainMap.
----
+# First mapper
 
-# Create your first mapper
+Reference the `DomainMapper` package, mark a partial class with `[DomainMapper]`, and declare a partial method:
 
-Create a mapper declaration as a partial class
-and apply the `DomainMap.Abstractions.DomainMapperAttribute` attribute.
-DomainMap generates mapping method implementations for the defined mapping methods in the mapper.
+```csharp
+using DomainMapper.Abstractions;
 
-```csharp title="Mapper declaration"
 [DomainMapper]
-public partial class CarMapper
+public static partial class CustomerMapper
 {
-    public partial CarDto CarToCarDto(Car car);
+    public static partial CustomerView ToView(Customer source);
 }
 ```
 
-```csharp title="Mapper usage"
-var mapper = new CarMapper();
-var car = new Car { NumberOfSeats = 10, ... };
-var dto = mapper.CarToCarDto(car);
-dto.NumberOfSeats.ShouldBe(10);
-```
+DomainMapper matches readable source properties to constructor parameters or writable target properties by name, ignoring case. Unsupported construction paths produce a compile-time diagnostic.
