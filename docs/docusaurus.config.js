@@ -3,12 +3,12 @@
 
 const { themes } = require('prism-react-renderer');
 
-const domainMapVersion = process.env.DOMAINMAP_VERSION || '0.0.1-dev';
+const domainMapperVersion = process.env.DOMAINMAPPER_VERSION || '0.0.1-dev';
 const environment = process.env.ENVIRONMENT || 'local';
 
 /** @type {import('./src/custom-fields').CustomFields} */
 const customFields = {
-  domainMapVersion,
+  domainMapperVersion,
   environment: {
     name: environment,
     stable: environment === 'stable',
@@ -24,15 +24,15 @@ async function createConfig() {
   /** @type {Config} */
   return {
     customFields,
-    title: 'DomainMap',
+    title: 'DomainMapper',
     tagline: 'Map data. Preserve intent. A DDD-first .NET source generator.',
     url: process.env.DOCUSAURUS_URL || 'http://localhost:3000',
     baseUrl: process.env.DOCUSAURUS_BASE_URL || '/',
     trailingSlash: true,
     onBrokenAnchors: 'throw',
     favicon: 'img/logo.svg',
-    organizationName: 'domainmap',
-    projectName: 'domainmap',
+    organizationName: 'domainmapper',
+    projectName: 'domainmapper',
     markdown: {
       hooks: {
         onBrokenMarkdownLinks: 'throw',
@@ -72,9 +72,9 @@ async function createConfig() {
           disableSwitch: true,
         },
         navbar: {
-          title: 'DomainMap',
+          title: 'DomainMapper',
           logo: {
-            alt: 'DomainMap Logo',
+            alt: 'DomainMapper Logo',
             src: 'img/logo.svg',
           },
           items: [
@@ -108,7 +108,7 @@ async function createConfig() {
         footer: {
           style: 'dark',
           copyright:
-            'Copyright © 2026 DomainMap contributors. Licensed under Apache-2.0.',
+            'Copyright © 2026 DomainMapper contributors. Licensed under Apache-2.0.',
           links: [
             {
               title: 'Docs',
@@ -119,7 +119,7 @@ async function createConfig() {
                 },
                 {
                   label: 'Installation',
-                  to: '/docs/getting-started/installation',
+                  to: '/docs/getting-started/first-mapper',
                 },
                 {
                   label: 'Configuration',

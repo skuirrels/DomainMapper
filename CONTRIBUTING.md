@@ -1,6 +1,6 @@
 # Contributing
 
-We would love for you to contribute to DomainMap.
+We would love for you to contribute to DomainMapper.
 
 Start with a focused issue that describes the domain boundary, expected generated code, diagnostics, and compatibility impact. Pull requests should include generator tests, runtime tests when behavior is observable, and benchmark coverage for performance-sensitive changes.
 

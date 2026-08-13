@@ -7,7 +7,7 @@ import type { LinkLikeNavbarItemProps } from '@theme/NavbarItem';
 import { CustomFields } from '@site/src/custom-fields';
 
 export default function VersionsNavbarItem(): JSX.Element {
-  const { environment, domainMapVersion } = useDocusaurusContext().siteConfig
+  const { environment, domainMapperVersion } = useDocusaurusContext().siteConfig
     .customFields as unknown as CustomFields;
 
   const items: LinkLikeNavbarItemProps[] = [
@@ -33,7 +33,7 @@ export default function VersionsNavbarItem(): JSX.Element {
 
   return (
     <DropdownNavbarItem
-      label={<>{domainMapVersion}</>}
+      label={<>{domainMapperVersion}</>}
       items={items}
       className={environment.stable ? undefined : styles.versionAlert}
     />

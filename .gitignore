@@ -1,21 +1,36 @@
-# artifacts / build outputs
+# Artifacts / build outputs
 artifacts/
 bin/
 obj/
+BenchmarkDotNet.Artifacts/
+packages/
+*.nupkg
+*.snupkg
 
+# IDE and user-specific files
 .vs/
 .idea/
-
-# verify received files
-*.received.*
-
-# dot user settings
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
 *.DotSettings.user
 
-# test logs
-**/TestResults/**/*.xml
+# Verify received files
+*.received.*
 
-# code coverage results
+# Test results and logs
+TestResults/
+*.trx
+*.log
+
+# Code coverage results
+coverage/
 *.coverage
 *.coveragexml
 coverage.cobertura.xml
+
+# Operating-system files
+.DS_Store
+Thumbs.db

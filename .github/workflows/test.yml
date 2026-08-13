@@ -63,7 +63,7 @@ jobs:
       - run: RELEASE_VERSION="0.0.1-dev.$GITHUB_RUN_ID" ./build/package.sh
       - uses: actions/upload-artifact@v7
         with:
-          name: domainmap-nupkg
+          name: domainmapper-nupkg
           path: artifacts/*.nupkg
       - if: failure()
         uses: actions/upload-artifact@v7
@@ -82,7 +82,7 @@ jobs:
       - run: dotnet tool restore
       - uses: actions/download-artifact@v8
         with:
-          name: domainmap-nupkg
+          name: domainmapper-nupkg
           path: artifacts
       # Rule 52 anonymously probes repository and project URLs, which cannot succeed while the repository is private.
       - run: >-
@@ -117,7 +117,7 @@ jobs:
       - run: dotnet --list-sdks
       - uses: actions/download-artifact@v8
         with:
-          name: domainmap-nupkg
+          name: domainmapper-nupkg
           path: artifacts
 
       # use nupkg artifact for integration tests instead of project references
@@ -125,17 +125,14 @@ jobs:
       - run: >-
           dotnet build
           -f net${{ matrix.dotnet }}
-          -p:DomainMapIntegrationTestsTargetFramework=net${{ matrix.dotnet }}
-          -p:DomainMapNugetPackageVersion="0.0.1-dev.$GITHUB_RUN_ID"
-        working-directory: ./test/DomainMap.IntegrationTests
-      - run: dotnet test --no-build -f net${{ matrix.dotnet }}
-        working-directory: ./test/DomainMap.IntegrationTests
-      - if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: verify-test-results-net${{ matrix.dotnet }}
-          path: '**/*.received.*'
-          retention-days: 3
+          -p:DomainMapperPackageSmokeTargetFramework=net${{ matrix.dotnet }}
+          -p:DomainMapperNugetPackageVersion="0.0.1-dev.$GITHUB_RUN_ID"
+        working-directory: ./samples/DomainMapper.PackageSmoke
+      - run: >-
+          dotnet run --no-build
+          -f net${{ matrix.dotnet }}
+          -p:DomainMapperPackageSmokeTargetFramework=net${{ matrix.dotnet }}
+        working-directory: ./samples/DomainMapper.PackageSmoke
   integration-test-net-framework:
     needs: package
     runs-on: windows-latest
@@ -145,7 +142,7 @@ jobs:
       - run: rm global.json
       - uses: actions/download-artifact@v8
         with:
-          name: domainmap-nupkg
+          name: domainmapper-nupkg
           path: artifacts
 
       # use nupkg artifact for integration tests instead of project references
@@ -153,35 +150,32 @@ jobs:
       - run: >-
           dotnet build
           -f net48
-          -p:DomainMapIntegrationTestsTargetFramework=net48
-          -p:DomainMapNugetPackageVersion=0.0.1-dev.$env:GITHUB_RUN_ID
-        working-directory: ./test/DomainMap.IntegrationTests
-      - run: dotnet test --no-build -f net48
-        working-directory: ./test/DomainMap.IntegrationTests
-      - if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: verify-test-results-net-framework
-          path: '**/*.received.*'
-          retention-days: 3
+          -p:DomainMapperPackageSmokeTargetFramework=net48
+          -p:DomainMapperNugetPackageVersion=0.0.1-dev.$env:GITHUB_RUN_ID
+        working-directory: ./samples/DomainMapper.PackageSmoke
+      - run: >-
+          dotnet run --no-build
+          -f net48
+          -p:DomainMapperPackageSmokeTargetFramework=net48
+        working-directory: ./samples/DomainMapper.PackageSmoke
   sample:
     runs-on: ubuntu-latest
     needs: package
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v5
-      - run: dotnet run --project ./samples/DomainMap.Sample
+      - run: dotnet run --project ./samples/DomainMapper.Sample
 
       # run the same again with the real nuget without runtime assets
       - uses: actions/download-artifact@v8
         with:
-          name: domainmap-nupkg
+          name: domainmapper-nupkg
           path: artifacts
 
       # use nupkg artifact instead of project references
       - run: dotnet nuget add source "$(pwd)/artifacts"
       - run: dotnet clean
-      - run: dotnet build -p:DomainMapNugetPackageVersion="0.0.1-dev.$GITHUB_RUN_ID"
-        working-directory: ./samples/DomainMap.Sample
+      - run: dotnet build -p:DomainMapperNugetPackageVersion="0.0.1-dev.$GITHUB_RUN_ID"
+        working-directory: ./samples/DomainMapper.Sample
       - run: dotnet run --no-build
-        working-directory: ./samples/DomainMap.Sample
+        working-directory: ./samples/DomainMapper.Sample

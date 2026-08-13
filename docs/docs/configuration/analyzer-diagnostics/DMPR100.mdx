@@ -1,0 +1,7 @@
+# DMPR100
+
+A partial mapping method must either return a target from at least one source parameter or update a target using the two-parameter `void Map(source, target)` form. Ref returns and `out` parameters are not supported.
+
+An existing value-type target must be passed by `ref`; passing it by value would only mutate a copy, while `in` is read-only. File-local mapper types are also unsupported because a generated file cannot contribute a partial declaration to a file-local type.
+
+A mapper-owned `[DomainFactory]` also reports this diagnostic when it is an instance or generic method, returns `void`, or uses `DomainFactoryInput.Source` without exactly one by-value parameter.

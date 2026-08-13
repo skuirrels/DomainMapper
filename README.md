@@ -1,101 +1,76 @@
-# DomainMap
+# DomainMapper
 
-**Map data. Preserve intent.**
+**Map data. Preserve invariants.**
 
-DomainMap is a compile-time object mapper for .NET 10 with a domain-driven design bias. It generates readable C# with no runtime reflection, while keeping constructors, named factories, value objects, and aggregate invariants under domain ownership.
+DomainMapper is a small compile-time mapper for .NET with a domain-driven design bias. Its source generator emits direct C# and does not use runtime reflection. The current package is `0.0.1-dev` and intentionally has a narrow, breaking API while the independent engine matures.
 
-> **Status:** v1.0.0 is available as a GitHub source release; NuGet publishing is intentionally deferred. See [NOTICE](NOTICE) for third-party attribution.
-
-## The API
+## Domain-first mapping
 
 ```csharp
-using DomainMap.Abstractions;
+using DomainMapper.Abstractions;
 
 [DomainMapper]
-public static partial class OrdersMap
+public static partial class OrderMapper
 {
-    [MapToFactory(nameof(Order.Place))]
-    public static partial Order ToDomain(this PlaceOrder command);
+    [DomainFactory(Input = DomainFactoryInput.Source)]
+    private static OrderId ToOrderId(int value) => new(value);
 
-    public static partial OrderDto ToDto(this Order order);
+    [MapToFactory(nameof(Order.Place))]
+    public static partial Order Place(OrderDraft source);
 }
 ```
 
-The generated construction path is intentionally boring and inspectable:
+`[MapToFactory]` makes the target-owned factory mandatory. DomainMapper binds source properties and additional mapping parameters to factory parameters by name and applies mapper-owned `[DomainFactory]` conversions where their source and target types match. Explicit mapping parameters take precedence over same-named root source properties. If the target cannot be constructed completely, generation fails instead of bypassing the domain boundary or silently dropping state.
 
-```csharp
-var target = Order.Place(
-    OrderId.Create(source.Id),
-    CustomerName.Create(source.CustomerName),
-    Money.Create(source.Total));
-return target;
-```
+## Current contract
 
-`[MapToFactory]` names the target-owned aggregate factory directly. DomainMap binds command members to its parameters and applies normal conversions, including conventional one-argument value-object factories such as `OrderId.Create(Guid)`. The factory is a required boundary: if DomainMap cannot satisfy it, compilation fails instead of silently choosing a public constructor or assigning properties.
+The rewritten engine supports:
 
-For outbound DTO mapping, value objects can expose safe implicit conversions or conventional `ToX` methods. Use `[DomainFactory]` for advanced mapper-owned boundaries such as immutable updates, whole-source factories, or application result contracts.
+- mutable targets with accessible parameterless constructors;
+- immutable targets and records with accessible constructors;
+- target-owned static factories through `[MapToFactory]`;
+- mapper-owned source-value and member-bound conversions through `[DomainFactory]`;
+- nested objects, arrays, lists, read-only collection targets, and mutable or read-only dictionary interfaces;
+- existing-target property updates;
+- nested and generic mapper types and generic mapping methods;
+- direct generated code that enumerates general sequences and preallocates only when the source exposes a count.
 
-## Design boundary
+Construction is fail-closed: every accessible writable target member must be mapped, and source-matched target state that is not writable from the generated mapper is rejected with `DMPR101`.
 
-DomainMap owns data movement. Your domain owns behavior.
-
-- Use generated mappings for commands, integration contracts, persistence models, read models, and projections.
-- Use `[MapToFactory(nameof(Aggregate.Create))]` as the concise default for entering an aggregate through a target-owned static factory.
-- Let conventional `Create(TValue)` methods construct strongly typed IDs and value objects.
-- Use `[DomainFactory]` when the boundary is mapper-owned or needs the whole source value.
-- Pass the current aggregate as an additional mapping parameter when an immutable update delegates to domain behavior. DomainMap will not guess that `Status = Shipped` means `order.Ship()`.
-- Keep expected business failures explicit in your own result type; DomainMap does not introduce a runtime result abstraction.
-- Project persistence entities to read models. Domain factories are deliberately rejected inside `IQueryable` projections.
-
-## Capability surface
-
-The inherited engine covers:
-
-- new-instance and existing-target mappings;
-- constructors, records, required/init members, and object factories;
-- nested and flattened members;
-- arrays, collections, dictionaries, spans, memory, tuples, and stacks;
-- enums, strings, parsing, casts, and custom conversions;
-- nullable annotations and configurable mismatch behavior;
-- generics, inheritance, derived-type dispatch, and external mappers;
-- reference preservation, deep cloning, and private-member access;
-- `IQueryable` projection generation;
-- incremental generation and analyzer diagnostics.
-
-The suite combines broad structural mapping coverage with DomainMap-specific generator and runtime tests for required factory binding, strongly typed IDs, immutable aggregate updates, explicit failure results, projection rejection, and invariant failures.
+Configuration-heavy mapping, private-member mutation, projections, reference preservation, derived-type dispatch, and other legacy compatibility features are intentionally not part of the new contract.
 
 ## Build and test
 
 ```bash
-dotnet restore DomainMap.slnx -p:HUSKY=0
-dotnet build DomainMap.slnx -p:HUSKY=0 --no-restore
-DiffEngine_Disabled=true dotnet test DomainMap.slnx -m:1 -p:HUSKY=0 --no-build --no-restore
+dotnet restore DomainMapper.slnx -p:HUSKY=0
+dotnet build DomainMapper.slnx --configuration Release --no-restore -p:HUSKY=0
+dotnet test test/DomainMapper.Tests/DomainMapper.Tests.csproj --configuration Release --no-build -p:HUSKY=0
+```
+
+Run the sample with:
+
+```bash
+dotnet run --project samples/DomainMapper.Sample/DomainMapper.Sample.csproj
 ```
 
 ## Benchmarks
 
-The benchmark project pins Mapperly 4.3.1 stable and compiles both generators into the same .NET 10 process.
+The comparison suite pins Mapperly 4.3.1 and measures both generated runtime mappings and cold source generation in balanced execution orders.
 
 ```bash
-dotnet run -c Release \
-  --project benchmarks/DomainMap.Benchmarks/DomainMap.Benchmarks.csproj \
-  -- --filter '*ComparisonMappingBenchmarks*'
-
-dotnet run -c Release \
-  --project benchmarks/DomainMap.Benchmarks/DomainMap.Benchmarks.csproj \
-  -- --filter '*SourceGeneratorBenchmarks*'
+DOMAINMAPPER_BENCHMARK_PAIRS=6 ./scripts/run-stable-benchmarks.sh
 ```
 
-See [benchmark methodology and initial results](docs/benchmarks.md).
+See [the benchmark methodology](docs/benchmarks.md).
 
 ## Project layout
 
-- `src/DomainMap.Abstractions` — the public attribute and configuration API.
-- `src/DomainMap` — the incremental source generator and diagnostics.
-- `test/DomainMap.Tests` — compile-time generation and diagnostics tests.
-- `test/DomainMap.IntegrationTests` — generated-code runtime tests.
-- `benchmarks/DomainMap.Benchmarks` — DomainMap versus Mapperly comparisons.
+- `src/DomainMapper.Abstractions` — four public, DDD-facing API types.
+- `src/DomainMapper/Engine` — contract discovery, semantic planning, conversion policy, and C# emission.
+- `test/DomainMapper.Tests` — engine contract and performance-gate tests.
+- `benchmarks/DomainMapper.Benchmarks` — balanced DomainMapper-versus-Mapperly evidence.
+- `samples/DomainMapper.Sample` — aggregate construction through a domain factory.
 
 ## License
 
-DomainMap is licensed under Apache-2.0. Third-party attribution is preserved in [NOTICE](NOTICE).
+DomainMapper is licensed under Apache-2.0. The repository history includes an earlier Mapperly-derived implementation; attribution is retained in [NOTICE](NOTICE).

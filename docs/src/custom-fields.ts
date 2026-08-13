@@ -1,5 +1,5 @@
 export interface CustomFields {
-  domainMapVersion: string;
+  domainMapperVersion: string;
   environment: {
     name: string;
     stable: boolean;

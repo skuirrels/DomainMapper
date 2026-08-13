@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <DefineConstants Condition="'$(DomainMapperAbstractionsScope)' == 'runtime'"
+      >$(DefineConstants);DOMAINMAPPER_ABSTRACTIONS_SCOPE_RUNTIME</DefineConstants>
+  </PropertyGroup>
+</Project>

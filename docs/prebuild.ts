@@ -20,7 +20,7 @@ async function emptyDirectory(dir: string): Promise<void> {
 async function buildApiDocs(): Promise<void> {
   const targetDir = './docs/api';
   const dll =
-    '../artifacts/bin/DomainMap.Abstractions/debug/DomainMap.Abstractions.dll';
+    '../artifacts/bin/DomainMapper.Abstractions/debug/DomainMapper.Abstractions.dll';
 
   // clean target directory
   await emptyDirectory(targetDir);
@@ -54,7 +54,7 @@ async function buildApiDocs(): Promise<void> {
     // xmldoc2md links enum values to fragments, but renders enum fields as a
     // table without anchors. Keep the useful type link and drop dead fragments.
     content = content.replace(
-      /(domainmap\.abstractions\.(?:enumnamingstrategy|ignoreobsoletemembersstrategy|mappingconversiontype|requiredmappingstrategy)\.md)#[a-z0-9-]+/g,
+      /(domainmapper\.abstractions\.(?:enumnamingstrategy|ignoreobsoletemembersstrategy|mappingconversiontype|requiredmappingstrategy)\.md)#[a-z0-9-]+/g,
       '$1',
     );
 
@@ -71,7 +71,7 @@ async function buildApiDocs(): Promise<void> {
 async function buildAnalyzerRulesData(): Promise<void> {
   // extract analyzer rules from AnalyzerReleases.Shipped.md and write to a json file
   const targetFile = join(generatedDataDir, 'analyzer-rules.json');
-  const sourceFile = '../src/DomainMap/AnalyzerReleases.Shipped.md';
+  const sourceFile = '../src/DomainMapper/AnalyzerReleases.Shipped.md';
   const analyzerDiagnosticsDocsDir =
     './docs/configuration/analyzer-diagnostics';
 
@@ -122,13 +122,24 @@ async function buildSamples(): Promise<void> {
   await mkdir(targetDir);
 
   // Copy generated mapper to target dir
-  const generatedMapperFile =
-    '../artifacts/obj/DomainMap.Sample/debug/generated/DomainMap/DomainMap.DomainMapGenerator/CarMapper.g.cs';
-  await copyFile(generatedMapperFile, join(targetDir, 'CarMapper.g.cs'));
+  const generatedMapperDir =
+    '../artifacts/obj/DomainMapper.Sample/debug/generated/DomainMapper/DomainMapper.DomainMapperGenerator';
+  const generatedMapperFiles = (await readdir(generatedMapperDir)).filter(
+    (fileName) => fileName.endsWith('.g.cs'),
+  );
+  if (generatedMapperFiles.length !== 1) {
+    throw new Error(
+      `Expected one generated sample mapper, found ${generatedMapperFiles.length}.`,
+    );
+  }
+  await copyFile(
+    join(generatedMapperDir, generatedMapperFiles[0]),
+    join(targetDir, 'OrderMapper.g.cs'),
+  );
 
   // Copy sample project files to target dir
-  const sampleProject = '../samples/DomainMap.Sample';
-  const projectFilesToCopy = ['CarMapper.cs', 'Car.cs', 'CarDto.cs'];
+  const sampleProject = '../samples/DomainMapper.Sample';
+  const projectFilesToCopy = ['OrderMapper.cs', 'Order.cs', 'OrderDraft.cs'];
   for (const file of projectFilesToCopy) {
     await copyFile(join(sampleProject, file), join(targetDir, file));
   }
