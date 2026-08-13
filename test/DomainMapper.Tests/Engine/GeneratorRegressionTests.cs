@@ -57,6 +57,55 @@ public sealed class GeneratorRegressionTests
     }
 
     [Fact]
+    public void MapsConstructorBoundInitOnlyMembersExactlyOnce()
+    {
+        var result = GeneratorTestHarness.Generate(
+            """
+            using DomainMapper.Abstractions;
+
+            [DomainMapper]
+            public static partial class Mapper
+            {
+                public static partial Target Map(Source source);
+            }
+
+            public sealed class Source
+            {
+                private readonly ValueSource _value = new(42);
+                public static int Reads { get; set; }
+                public ValueSource Value
+                {
+                    get
+                    {
+                        Reads++;
+                        return _value;
+                    }
+                }
+            }
+
+            public sealed record ValueSource(int Id);
+            public sealed record ValueTarget(int Id);
+            public sealed record Target(ValueTarget Value);
+
+            public static class Probe
+            {
+                public static int Run()
+                {
+                    Source.Reads = 0;
+                    var target = Mapper.Map(new Source());
+                    return (Source.Reads * 100) + target.Value.Id;
+                }
+            }
+            """
+        );
+
+        result.Errors.ShouldBeEmpty();
+        result.Source.ShouldContain("new global::Target(MapToValueTarget(source.Value));");
+        result.Source.ShouldNotContain("{ Value = MapToValueTarget(source.Value) }");
+        GeneratorTestHarness.InvokeStatic<int>(result, "Probe", "Run").ShouldBe(142);
+    }
+
+    [Fact]
     public void RejectsScalarConstructionThatWouldDropWritableState()
     {
         var result = GeneratorTestHarness.Generate(

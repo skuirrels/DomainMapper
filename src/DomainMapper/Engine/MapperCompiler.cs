@@ -453,9 +453,11 @@ internal sealed class MapperCompiler
         var assignmentLines = new List<string>();
         foreach (var targetMember in settableMembers)
         {
-            var requiresInitializer = targetMember.SetMethod!.IsInitOnly || (targetMember.IsRequired && !constructorSetsRequiredMembers);
-            if (consumedMembers.Contains(targetMember.Name) && !requiresInitializer)
+            var requiresRequiredMemberInitializer = targetMember.IsRequired && !constructorSetsRequiredMembers;
+            if (consumedMembers.Contains(targetMember.Name) && !requiresRequiredMemberInitializer)
                 continue;
+
+            var requiresInitializer = targetMember.SetMethod!.IsInitOnly || requiresRequiredMemberInitializer;
 
             if (!TryFindProperty(sourceMembers, targetMember.Name, out var sourceMember))
             {
@@ -794,7 +796,7 @@ internal sealed class MapperCompiler
 
                 var settableMembers = SettableProperties(targetType);
                 var assignmentsValid = settableMembers
-                    .Where(x => !consumed.Contains(x.Name) || x.SetMethod!.IsInitOnly || (x.IsRequired && !constructorSetsRequiredMembers))
+                    .Where(x => !consumed.Contains(x.Name) || (x.IsRequired && !constructorSetsRequiredMembers))
                     .All(x =>
                         TryFindProperty(sourceMembers, x.Name, out var sourceMember)
                         && CanConvert(sourceMember.Type, x.Type, context, visiting)
