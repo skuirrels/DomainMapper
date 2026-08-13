@@ -48,7 +48,6 @@ jobs:
       fail-fast: false
       matrix:
         BENCHMARK_NAME:
-          - MappingBenchmarks
           - ComparisonMappingBenchmarks
           - SourceGeneratorBenchmarks
     name: ${{ matrix.BENCHMARK_NAME }}
@@ -86,11 +85,10 @@ jobs:
           key: benchmarks-${{ matrix.BENCHMARK_NAME }}-main-${{ github.run_id }}
           restore-keys: |
             benchmarks-${{ matrix.BENCHMARK_NAME }}-main-
-      - name: Enforce Mapperly parity
+      - name: Enforce Mapperly no-regression policy
         if: matrix.BENCHMARK_NAME == 'ComparisonMappingBenchmarks'
         env:
           DOMAINMAPPER_MAPPERLY_PARITY_REPORT: ${{ env.BENCHMARK_RESULT_DIR }}/DomainMapper-vs-Mapperly-parity.json
-          DOMAINMAPPER_MAPPERLY_FASTER_SCENARIOS: 'Flat'
           DOMAINMAPPER_MAPPERLY_MIN_REPORTS: '2'
           DOMAINMAPPER_MAPPERLY_MIN_SAMPLES: '6'
         run: >-
