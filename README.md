@@ -6,12 +6,10 @@ DomainMapper is a small compile-time mapper for .NET with a domain-driven design
 
 ## Version 1.0.0
 
-[`v1.0.0`](https://github.com/skuirrels/DomainMapper/releases/tag/v1.0.0) is the first public release of DomainMapper. NuGet publishing is intentionally deferred; download the source from the release page or clone the repository and check out the release tag:
+[`v1.0.0`](https://github.com/skuirrels/DomainMapper/releases/tag/v1.0.0) is the first public release of DomainMapper. Install it from NuGet with:
 
 ```bash
-git clone https://github.com/skuirrels/DomainMapper.git
-cd DomainMapper
-git checkout v1.0.0
+dotnet add package DomainMapper --version 1.0.0
 ```
 
 ## Domain-first mapping
