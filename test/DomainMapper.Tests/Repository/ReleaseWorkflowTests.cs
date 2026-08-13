@@ -29,5 +29,7 @@ public sealed class ReleaseWorkflowTests
         workflow.ShouldContain("NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}");
         workflow.ShouldNotContain("NUGET_API_TOKEN");
         workflow.ShouldNotContain("environment: next");
+        workflow.ShouldNotContain("CLOUDFLARE");
+        workflow.ShouldNotContain("uses: ./.github/workflows/docs.yml");
     }
 }
