@@ -2,7 +2,17 @@
 
 **Map data. Preserve invariants.**
 
-DomainMapper is a small compile-time mapper for .NET with a domain-driven design bias. Its source generator emits direct C# and does not use runtime reflection. The current package is `0.0.1-dev` and intentionally has a narrow, breaking API while the independent engine matures.
+DomainMapper is a small compile-time mapper for .NET with a domain-driven design bias. Its source generator emits direct C# and does not use runtime reflection. Version `1.0.0` focuses on an explicit API for mapping data through domain-owned constructors and factories.
+
+## Version 1.0.0
+
+[`v1.0.0`](https://github.com/skuirrels/DomainMapper/releases/tag/v1.0.0) is the first public release of DomainMapper. NuGet publishing is intentionally deferred; download the source from the release page or clone the repository and check out the release tag:
+
+```bash
+git clone https://github.com/skuirrels/DomainMapper.git
+cd DomainMapper
+git checkout v1.0.0
+```
 
 ## Domain-first mapping
 
@@ -22,9 +32,9 @@ public static partial class OrderMapper
 
 `[MapToFactory]` makes the target-owned factory mandatory. DomainMapper binds source properties and additional mapping parameters to factory parameters by name and applies mapper-owned `[DomainFactory]` conversions where their source and target types match. Explicit mapping parameters take precedence over same-named root source properties. If the target cannot be constructed completely, generation fails instead of bypassing the domain boundary or silently dropping state.
 
-## Current contract
+## Supported mappings
 
-The rewritten engine supports:
+DomainMapper 1.0.0 supports:
 
 - mutable targets with accessible parameterless constructors;
 - immutable targets and records with accessible constructors;
@@ -37,7 +47,7 @@ The rewritten engine supports:
 
 Construction is fail-closed: every accessible writable target member must be mapped, and source-matched target state that is not writable from the generated mapper is rejected with `DMPR101`.
 
-Configuration-heavy mapping, private-member mutation, projections, reference preservation, derived-type dispatch, and other legacy compatibility features are intentionally not part of the new contract.
+Configuration-heavy mapping, private-member mutation, projections, reference preservation, and derived-type dispatch are intentionally outside the 1.0.0 contract.
 
 ## Build and test
 
@@ -73,4 +83,4 @@ See [the benchmark methodology](docs/benchmarks.md).
 
 ## License
 
-DomainMapper is licensed under Apache-2.0. The repository history includes an earlier Mapperly-derived implementation; attribution is retained in [NOTICE](NOTICE).
+DomainMapper is licensed under Apache-2.0. Third-party attribution is retained in [NOTICE](NOTICE).
