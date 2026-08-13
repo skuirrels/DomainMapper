@@ -1,7 +1,4 @@
-using System.Collections.Immutable;
-using DomainMapper.Abstractions;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 
 namespace DomainMapper.Tests.Engine;
 
@@ -10,7 +7,7 @@ public sealed class GeneratorContractTests
     [Fact]
     public void GeneratesDirectPropertyAssignments()
     {
-        var result = Generate(
+        var result = GeneratorTestHarness.Generate(
             """
             using DomainMapper.Abstractions;
 
@@ -38,7 +35,7 @@ public sealed class GeneratorContractTests
     [Fact]
     public void DoesNotForceJitInliningPolicyOntoGeneratedMappings()
     {
-        var result = Generate(
+        var result = GeneratorTestHarness.Generate(
             """
             using DomainMapper.Abstractions;
 
@@ -61,7 +58,7 @@ public sealed class GeneratorContractTests
     [Fact]
     public void UsesIndexedListMappingWithoutAdditionalRuntimeAllocation()
     {
-        var result = Generate(
+        var result = GeneratorTestHarness.Generate(
             """
             using System.Collections.Generic;
             using DomainMapper.Abstractions;
@@ -86,7 +83,7 @@ public sealed class GeneratorContractTests
     [Fact]
     public void RoutesAggregateConstructionThroughTargetFactory()
     {
-        var result = Generate(
+        var result = GeneratorTestHarness.Generate(
             """
             using DomainMapper.Abstractions;
 
@@ -116,7 +113,7 @@ public sealed class GeneratorContractTests
     [Fact]
     public void RejectsMethodsOutsideTheMappingContract()
     {
-        var result = Generate(
+        var result = GeneratorTestHarness.Generate(
             """
             using DomainMapper.Abstractions;
 
@@ -134,7 +131,7 @@ public sealed class GeneratorContractTests
     [Fact]
     public void RejectsTargetsWithoutAnAccessibleConstructionPath()
     {
-        var result = Generate(
+        var result = GeneratorTestHarness.Generate(
             """
             using DomainMapper.Abstractions;
 
@@ -155,34 +152,4 @@ public sealed class GeneratorContractTests
 
         result.Diagnostics.ShouldContain(x => x.Id == "DMPR101" && x.Severity == DiagnosticSeverity.Error);
     }
-
-    private static GenerationResult Generate(string source)
-    {
-        var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview);
-        var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
-        var references = TrustedPlatformReferences().Add(MetadataReference.CreateFromFile(typeof(DomainMapperAttribute).Assembly.Location));
-        var compilation = CSharpCompilation.Create(
-            "DomainMapper.ContractTests",
-            [syntaxTree],
-            references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable)
-        );
-        var driver = CSharpGeneratorDriver.Create([new DomainMapperGenerator().AsSourceGenerator()], parseOptions: parseOptions);
-
-        driver = (CSharpGeneratorDriver)
-            driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var generatorDiagnostics);
-        var generatedSource = string.Join(Environment.NewLine, driver.GetRunResult().GeneratedTrees.Select(x => x.GetText().ToString()));
-        var errors = outputCompilation.GetDiagnostics().Where(x => x.Severity == DiagnosticSeverity.Error).ToImmutableArray();
-        return new GenerationResult(generatedSource, generatorDiagnostics, errors);
-    }
-
-    private static ImmutableArray<MetadataReference> TrustedPlatformReferences()
-    {
-        var paths =
-            ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))?.Split(Path.PathSeparator)
-            ?? throw new InvalidOperationException("Trusted platform assemblies are unavailable.");
-        return paths.Select(path => MetadataReference.CreateFromFile(path)).ToImmutableArray<MetadataReference>();
-    }
-
-    private sealed record GenerationResult(string Source, ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<Diagnostic> Errors);
 }

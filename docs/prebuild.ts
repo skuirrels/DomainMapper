@@ -122,9 +122,20 @@ async function buildSamples(): Promise<void> {
   await mkdir(targetDir);
 
   // Copy generated mapper to target dir
-  const generatedMapperFile =
-    '../artifacts/obj/DomainMapper.Sample/debug/generated/DomainMapper/DomainMapper.DomainMapperGenerator/OrderMapper.g.cs';
-  await copyFile(generatedMapperFile, join(targetDir, 'OrderMapper.g.cs'));
+  const generatedMapperDir =
+    '../artifacts/obj/DomainMapper.Sample/debug/generated/DomainMapper/DomainMapper.DomainMapperGenerator';
+  const generatedMapperFiles = (await readdir(generatedMapperDir)).filter(
+    (fileName) => fileName.endsWith('.g.cs'),
+  );
+  if (generatedMapperFiles.length !== 1) {
+    throw new Error(
+      `Expected one generated sample mapper, found ${generatedMapperFiles.length}.`,
+    );
+  }
+  await copyFile(
+    join(generatedMapperDir, generatedMapperFiles[0]),
+    join(targetDir, 'OrderMapper.g.cs'),
+  );
 
   // Copy sample project files to target dir
   const sampleProject = '../samples/DomainMapper.Sample';

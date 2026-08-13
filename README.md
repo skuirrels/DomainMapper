@@ -20,7 +20,7 @@ public static partial class OrderMapper
 }
 ```
 
-`[MapToFactory]` makes the target-owned factory mandatory. DomainMapper binds source properties to factory parameters by name and applies mapper-owned `[DomainFactory]` conversions where their source and target types match. If the target cannot be constructed, generation fails instead of bypassing the domain boundary.
+`[MapToFactory]` makes the target-owned factory mandatory. DomainMapper binds source properties and additional mapping parameters to factory parameters by name and applies mapper-owned `[DomainFactory]` conversions where their source and target types match. Explicit mapping parameters take precedence over same-named root source properties. If the target cannot be constructed completely, generation fails instead of bypassing the domain boundary or silently dropping state.
 
 ## Current contract
 
@@ -29,10 +29,13 @@ The rewritten engine supports:
 - mutable targets with accessible parameterless constructors;
 - immutable targets and records with accessible constructors;
 - target-owned static factories through `[MapToFactory]`;
-- mapper-owned single-value conversions through `[DomainFactory]`;
-- nested objects, arrays, lists, read-only collection targets, and dictionaries;
+- mapper-owned source-value and member-bound conversions through `[DomainFactory]`;
+- nested objects, arrays, lists, read-only collection targets, and mutable or read-only dictionary interfaces;
 - existing-target property updates;
-- direct generated code with optimized indexed loops for indexable collections.
+- nested and generic mapper types and generic mapping methods;
+- direct generated code that enumerates general sequences and preallocates only when the source exposes a count.
+
+Construction is fail-closed: every accessible writable target member must be mapped, and source-matched target state that is not writable from the generated mapper is rejected with `DMPR101`.
 
 Configuration-heavy mapping, private-member mutation, projections, reference preservation, derived-type dispatch, and other legacy compatibility features are intentionally not part of the new contract.
 

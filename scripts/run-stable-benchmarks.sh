@@ -35,9 +35,16 @@ dotnet build "$benchmark_project" --configuration Release
 
 generated_root="$repo_root/artifacts/obj/DomainMapper.Benchmarks/release/generated"
 parity_report="$result_root/DomainMapper-vs-Mapperly-parity.json"
+domainmapper_generated=(
+    "$generated_root/DomainMapper/DomainMapper.DomainMapperGenerator/"*DomainMapperBenchmarkMapper*.g.cs
+)
+if [[ ${#domainmapper_generated[@]} -ne 1 || ! -f "${domainmapper_generated[0]}" ]]; then
+    echo "Expected exactly one generated DomainMapper benchmark source" >&2
+    exit 2
+fi
 dotnet run --no-build --configuration Release --project "$benchmark_project" -- \
     --write-comparison-parity \
-    "$generated_root/DomainMapper/DomainMapper.DomainMapperGenerator/DomainMapperBenchmarkMapper.g.cs" \
+    "${domainmapper_generated[0]}" \
     "$generated_root/Riok.Mapperly/Riok.Mapperly.MapperGenerator/MapperlyBenchmarkMapper.g.cs" \
     "$repo_root/benchmarks/DomainMapper.Benchmarks/ComparisonMappingBenchmarks.cs" \
     "$parity_report"

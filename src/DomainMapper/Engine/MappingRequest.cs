@@ -4,11 +4,12 @@ namespace DomainMapper.Engine;
 
 internal sealed class MappingRequest
 {
-    public MappingRequest(ITypeSymbol sourceType, ITypeSymbol targetType, string methodName)
+    public MappingRequest(ITypeSymbol sourceType, ITypeSymbol targetType, string methodName, MappingContext context)
     {
         SourceType = sourceType;
         TargetType = targetType;
         MethodName = methodName;
+        Context = context;
     }
 
     public ITypeSymbol SourceType { get; }
@@ -16,4 +17,6 @@ internal sealed class MappingRequest
     public ITypeSymbol TargetType { get; }
 
     public string MethodName { get; }
+
+    public MappingContext Context { get; }
 }

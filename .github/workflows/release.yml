@@ -29,19 +29,20 @@ jobs:
           fetch-depth: 0
       - id: extract-version
         name: extract version
-        run: echo "RELEASE_VERSION=${RELEASE_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: echo "RELEASE_VERSION=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
         env:
-          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
       - name: extract release notes
         id: extract-release-notes
         run: |
           {
             echo 'RELEASE_NOTES<<EOF';
-            gh release view '${{ github.event.release.name }}' --json body --jq .body;
+            gh release view "$RELEASE_TAG" --json body --jq .body;
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
       - name: convert release notes markdown to text
         id: release-notes-text
         uses: koistya/strip-markdown@v1
@@ -60,9 +61,10 @@ jobs:
       - name: publish nuget
         run: dotnet nuget push './artifacts/*.nupkg' --source "$NUGET_SOURCE" --api-key '${{ secrets.NUGET_API_TOKEN }}'
       - name: add release assets
-        run: gh release upload "${{ github.event.release.name }}" artifacts/*.nupkg
+        run: gh release upload "$RELEASE_TAG" artifacts/*.nupkg
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
   docs:
     uses: ./.github/workflows/docs.yml
     needs: release

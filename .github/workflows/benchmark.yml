@@ -73,7 +73,7 @@ jobs:
           dotnet run --no-build --configuration Release
           --project ${{ env.BENCHMARKS_PATH }}/DomainMapper.Benchmarks.csproj --
           --write-comparison-parity
-          artifacts/obj/DomainMapper.Benchmarks/release/generated/DomainMapper/DomainMapper.DomainMapperGenerator/DomainMapperBenchmarkMapper.g.cs
+          artifacts/obj/DomainMapper.Benchmarks/release/generated/DomainMapper/DomainMapper.DomainMapperGenerator/*DomainMapperBenchmarkMapper*.g.cs
           artifacts/obj/DomainMapper.Benchmarks/release/generated/Riok.Mapperly/Riok.Mapperly.MapperGenerator/MapperlyBenchmarkMapper.g.cs
           ${{ env.BENCHMARKS_PATH }}/ComparisonMappingBenchmarks.cs
           ${{ env.BENCHMARK_RESULT_DIR }}/DomainMapper-vs-Mapperly-parity.json
