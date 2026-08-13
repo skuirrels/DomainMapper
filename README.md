@@ -1,5 +1,8 @@
 # DomainMapper
 
+[![NuGet](https://img.shields.io/nuget/v/DomainMapper.svg)](https://www.nuget.org/packages/DomainMapper)
+[![NuGet downloads](https://img.shields.io/nuget/dt/DomainMapper.svg)](https://www.nuget.org/packages/DomainMapper)
+
 **Map data. Preserve invariants.**
 
 DomainMapper is a small compile-time mapper for .NET with a domain-driven design bias. Its source generator emits direct C# and does not use runtime reflection. Version `1.0.0` focuses on an explicit API for mapping data through domain-owned constructors and factories.
