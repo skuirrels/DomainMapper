@@ -60,7 +60,7 @@ jobs:
       - run: sudo apt update && sudo apt -y install zipmerge # zipmerge is used to merge the multi target nupkg
       - uses: actions/setup-dotnet@v5
       - run: dotnet tool restore
-      - run: RELEASE_VERSION="0.0.1-dev.$GITHUB_RUN_ID" ./build/package.sh
+      - run: RELEASE_VERSION="1.1.0-dev.$GITHUB_RUN_ID" ./build/package.sh
       - uses: actions/upload-artifact@v7
         with:
           name: domainmapper-nupkg
@@ -126,7 +126,7 @@ jobs:
           dotnet build
           -f net${{ matrix.dotnet }}
           -p:DomainMapperPackageSmokeTargetFramework=net${{ matrix.dotnet }}
-          -p:DomainMapperNugetPackageVersion="0.0.1-dev.$GITHUB_RUN_ID"
+          -p:DomainMapperNugetPackageVersion="1.1.0-dev.$GITHUB_RUN_ID"
         working-directory: ./samples/DomainMapper.PackageSmoke
       - run: >-
           dotnet run --no-build
@@ -151,7 +151,7 @@ jobs:
           dotnet build
           -f net48
           -p:DomainMapperPackageSmokeTargetFramework=net48
-          -p:DomainMapperNugetPackageVersion=0.0.1-dev.$env:GITHUB_RUN_ID
+          -p:DomainMapperNugetPackageVersion=1.1.0-dev.$env:GITHUB_RUN_ID
         working-directory: ./samples/DomainMapper.PackageSmoke
       - run: >-
           dotnet run --no-build
@@ -175,7 +175,7 @@ jobs:
       # use nupkg artifact instead of project references
       - run: dotnet nuget add source "$(pwd)/artifacts"
       - run: dotnet clean
-      - run: dotnet build -p:DomainMapperNugetPackageVersion="0.0.1-dev.$GITHUB_RUN_ID"
+      - run: dotnet build -p:DomainMapperNugetPackageVersion="1.1.0-dev.$GITHUB_RUN_ID"
         working-directory: ./samples/DomainMapper.Sample
       - run: dotnet run --no-build
         working-directory: ./samples/DomainMapper.Sample

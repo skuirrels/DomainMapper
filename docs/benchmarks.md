@@ -4,9 +4,10 @@ DomainMapper compares generated runtime mappings and cold source generation with
 
 ## What is measured
 
-`ComparisonMappingBenchmarks` exercises five paired mappings over identical types:
+`ComparisonMappingBenchmarks` exercises six paired mappings over identical types:
 
 - flat mutable objects;
+- explicitly renamed and flattened members;
 - nested records containing a concrete list;
 - updates to an existing target;
 - aggregate construction through a static domain factory;
@@ -39,7 +40,7 @@ The full default local run then used six balanced pairs: 12 reports and 36 raw s
 | Domain factory       |       20.376 ns |            4.521 ns |     0.222x |                64 B |                    64 B | Pass                 | No meaningful winner |
 | Existing target      |        0.775 ns |            0.772 ns |     0.995x |                 0 B |                     0 B | Pass                 | No meaningful winner |
 | Flat object          |        4.034 ns |            4.006 ns |     0.993x |                64 B |                    64 B | Pass                 | No meaningful winner |
-| Nested collection    |       29.703 ns |           29.096 ns |     0.980x |               288 B |                   288 B | Pass                 | No proven winner     |
+| Nested collection    |       29.703 ns |           29.096 ns |     0.980x |               288 B |                   288 B | Pass                 | No meaningful winner |
 | Value-object factory |        2.130 ns |            2.132 ns |     1.001x |                24 B |                    24 B | Pass                 | No meaningful winner |
 
 The stronger differentiated-path claim did not pass in this full local run. Nested collection had a lower DomainMapper median, but severe host scheduling disturbances widened its one-sided upper difference bound to `3.029 ns`, so this evidence does not prove that path faster. The same path passed the balanced development gate with a `-0.554 ns` upper bound. The high-priority scheduling request was denied by the host, so repeat the strict gate on dedicated, idle hardware before making a release-level faster-than-Mapperly claim.

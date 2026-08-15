@@ -3,6 +3,7 @@ using BenchmarkDotNet.Configs;
 using DomainMapper.Abstractions;
 using MapperlyFactory = Riok.Mapperly.Abstractions.ObjectFactoryAttribute;
 using MapperlyMapper = Riok.Mapperly.Abstractions.MapperAttribute;
+using MapperlyMapProperty = Riok.Mapperly.Abstractions.MapPropertyAttribute;
 
 namespace DomainMapper.Benchmarks;
 
@@ -29,6 +30,7 @@ public class ComparisonMappingBenchmarks
     private readonly BenchmarkFlatTarget _domainMapperExisting = new();
     private readonly BenchmarkFlatTarget _mapperlyExisting = new();
     private readonly BenchmarkIdSource _idSource = new(42);
+    private readonly BenchmarkRenamedSource _renamed = new(42, DateTimeOffset.UnixEpoch, new BenchmarkWarehouseSource("London Gateway"));
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Flat")]
@@ -37,6 +39,14 @@ public class ComparisonMappingBenchmarks
     [Benchmark]
     [BenchmarkCategory("Flat")]
     public BenchmarkFlatTarget DomainMapperFlat() => DomainMapperBenchmarkMapper.MapFlat(_flat);
+
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("RenamedFlattened")]
+    public BenchmarkRenamedTarget MapperlyRenamedFlattened() => MapperlyBenchmarkMapper.MapRenamed(_renamed);
+
+    [Benchmark]
+    [BenchmarkCategory("RenamedFlattened")]
+    public BenchmarkRenamedTarget DomainMapperRenamedFlattened() => DomainMapperBenchmarkMapper.MapRenamed(_renamed);
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("NestedCollection")]
@@ -84,6 +94,14 @@ public static partial class DomainMapperBenchmarkMapper
 {
     public static partial BenchmarkFlatTarget MapFlat(BenchmarkFlatSource source);
 
+    [MapMember(nameof(BenchmarkRenamedTarget.EdcId), nameof(BenchmarkRenamedSource.ID))]
+    [MapMember(nameof(BenchmarkRenamedTarget.CreatedDate), nameof(BenchmarkRenamedSource.DateCreated))]
+    [MapMember(
+        nameof(BenchmarkRenamedTarget.TransitWarehouseDescription),
+        nameof(BenchmarkRenamedSource.Warehouse) + "." + nameof(BenchmarkWarehouseSource.Description)
+    )]
+    public static partial BenchmarkRenamedTarget MapRenamed(BenchmarkRenamedSource source);
+
     public static partial BenchmarkOrderTarget MapOrder(BenchmarkOrderSource source);
 
     public static partial void UpdateFlat(BenchmarkFlatSource source, BenchmarkFlatTarget target);
@@ -102,6 +120,14 @@ public static partial class DomainMapperBenchmarkMapper
 public static partial class MapperlyBenchmarkMapper
 {
     public static partial BenchmarkFlatTarget MapFlat(BenchmarkFlatSource source);
+
+    [MapperlyMapProperty(nameof(BenchmarkRenamedSource.ID), nameof(BenchmarkRenamedTarget.EdcId))]
+    [MapperlyMapProperty(nameof(BenchmarkRenamedSource.DateCreated), nameof(BenchmarkRenamedTarget.CreatedDate))]
+    [MapperlyMapProperty(
+        nameof(BenchmarkRenamedSource.Warehouse) + "." + nameof(BenchmarkWarehouseSource.Description),
+        nameof(BenchmarkRenamedTarget.TransitWarehouseDescription)
+    )]
+    public static partial BenchmarkRenamedTarget MapRenamed(BenchmarkRenamedSource source);
 
     public static partial BenchmarkOrderTarget MapOrder(BenchmarkOrderSource source);
 
@@ -160,6 +186,12 @@ public sealed record BenchmarkOrderTarget(Guid Id, BenchmarkCustomerTarget Custo
 public sealed record BenchmarkIdSource(int Id);
 
 public sealed record BenchmarkIdTarget(BenchmarkAggregateId Id);
+
+public sealed record BenchmarkWarehouseSource(string Description);
+
+public sealed record BenchmarkRenamedSource(int ID, DateTimeOffset DateCreated, BenchmarkWarehouseSource Warehouse);
+
+public sealed record BenchmarkRenamedTarget(int EdcId, DateTimeOffset CreatedDate, string TransitWarehouseDescription);
 
 public readonly record struct BenchmarkAggregateId(int Value);
 

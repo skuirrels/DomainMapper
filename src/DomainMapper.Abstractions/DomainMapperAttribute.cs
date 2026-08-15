@@ -6,8 +6,8 @@ namespace DomainMapper.Abstractions;
 /// Marks a partial type as a compile-time domain mapper.
 /// </summary>
 /// <remarks>
-/// Mapping declarations are intentionally convention based. Domain construction rules belong in
-/// constructors or factory methods, not in mapper configuration properties.
+/// Mapping declarations may use compatible property conventions or explicit compile-time contracts.
+/// Domain construction rules belong in constructors or factory methods, not in mapper configuration properties.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class)]
 [Conditional("DOMAINMAPPER_ABSTRACTIONS_SCOPE_RUNTIME")]
