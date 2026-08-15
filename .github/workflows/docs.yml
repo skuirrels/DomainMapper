@@ -15,11 +15,6 @@ on:
         required: false
         type: string
         default: '1.1.0-dev'
-    secrets:
-      CLOUDFLARE_API_TOKEN:
-        required: false
-      CLOUDFLARE_ACCOUNT_ID:
-        required: false
   workflow_dispatch:
     inputs:
       deploy:
@@ -53,6 +48,8 @@ concurrency:
 
 jobs:
   build:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - run: echo "building ${{ inputs.version }} for ${{ inputs.environment }}"
@@ -70,6 +67,8 @@ jobs:
         env:
           DOMAINMAPPER_VERSION: ${{ inputs.version }}
           ENVIRONMENT: ${{ inputs.environment }}
+          DOCUSAURUS_URL: ${{ inputs.environment == 'stable' && 'https://skuirrels.github.io' || '' }}
+          DOCUSAURUS_BASE_URL: ${{ inputs.environment == 'stable' && '/DomainMapper/' || '/' }}
       # run lint after build, as generated files may be imported which cannot be found otherwise
       - run: npm run lint
         working-directory: ./docs
@@ -77,14 +76,19 @@ jobs:
         with:
           name: domainmapper-docs
           path: 'docs/build'
+      - name: Upload stable site for GitHub Pages
+        if: ${{ inputs.deploy && inputs.environment == 'stable' }}
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: 'docs/build'
   deploy:
-    if: ${{ inputs.deploy }}
+    if: ${{ inputs.deploy && inputs.environment == 'stable' }}
     permissions:
       contents: read
       pages: write
       id-token: write
     environment:
-      name: docs-${{ inputs.environment }}
+      name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     concurrency:
       group: pages
@@ -92,27 +96,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: domainmapper-docs
-          path: 'docs/build'
-      # replace stable environment name with main
-      # cf pages only recognizes main as production branch
-      - uses: bluwy/substitute-string-action@v4
-        id: cf-pages-branch-name
-        with:
-          _input-text: ${{ inputs.environment }}
-          stable: main
       # we never want to deploy with no version set
       # stop the deployment here
       - name: Version not set
         if: ${{ inputs.version == '' || inputs.version == '1.1.0-dev' }}
         run: exit 1
-      - uses: cloudflare/pages-action@v1
+      - uses: actions/deploy-pages@v5
         id: deployment
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: domainmapper
-          branch: ${{ steps.cf-pages-branch-name.outputs.result }}
-          directory: 'docs/build'
