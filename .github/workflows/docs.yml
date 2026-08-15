@@ -14,7 +14,7 @@ on:
       version:
         required: false
         type: string
-        default: '1.1.0-dev'
+        default: '1.2.0-dev'
   workflow_dispatch:
     inputs:
       deploy:
@@ -33,7 +33,7 @@ on:
       version:
         required: false
         type: string
-        default: '1.1.0-dev'
+        default: '1.2.0-dev'
         description: The version of DomainMapper to be referenced from the documentation
   pull_request:
     branches:
@@ -99,7 +99,7 @@ jobs:
       # we never want to deploy with no version set
       # stop the deployment here
       - name: Version not set
-        if: ${{ inputs.version == '' || inputs.version == '1.1.0-dev' }}
+        if: ${{ inputs.version == '' || inputs.version == '1.2.0-dev' }}
         run: exit 1
       - uses: actions/deploy-pages@v5
         id: deployment

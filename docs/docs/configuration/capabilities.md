@@ -1,6 +1,6 @@
 # Capabilities and limitations
 
-This page is the authoritative product contract for DomainMapper 1.1.0. Generated mappings use direct C# calls and member access; none of these features uses runtime reflection or mutable runtime configuration.
+This page is the authoritative product contract for the next DomainMapper 1.2 release. Generated mappings use direct C# calls and member access; none of these features uses runtime reflection, assembly scanning, or mutable runtime configuration.
 
 ## Explicit mapping contract
 
@@ -29,7 +29,7 @@ public static partial class OrderMapper
 
 Convention mapping remains property-only for compatibility with 1.0. Fields participate when an explicit contract such as `MapMember`, `MapTargetMember`, or an existing-target allow-list names them.
 
-Nested paths use generated null propagation. They are in-memory mappings; query projections are not yet supported.
+Nested paths use generated null propagation. Eligible contracts can also expose a separately declared, cached expression-tree projection.
 
 ## Completeness and ignores
 
@@ -51,7 +51,7 @@ private static bool ShouldApplyDate(BookingUpdate source, Booking target) =>
 
 `MapOnlyTargetMembers` is an explicit mutation allow-list. Members outside it are not assigned, which makes identity, audit, navigation, ownership, and concurrency state protected by default. A false `MapCondition` preserves the current target member. Reference targets are mutated in place; value-type targets require `ref`.
 
-Collection relationship updates are not inferred. An update may replace an allow-listed collection member, but clear/fill, append, and merge-by-key semantics are not currently generated.
+`MapCollection` selects `Replace`, `ClearAndFill`, or `Append` for one allow-listed collection member. Clear/fill and append require a mutable `ICollection<T>` or `IDictionary<TKey, TValue>` contract. They preserve source ordering and duplicates; duplicate dictionary keys follow `IDictionary.Add` and throw. A null source clears under `ClearAndFill`, is a no-op under `Append`, and can instead use `PreserveTarget` or `Throw`. DomainMapper never infers identity, ownership, deletion, or merge-by-key behavior.
 
 ## Null behavior
 
@@ -75,7 +75,21 @@ Target-owned factories selected by `MapToFactory` remain mandatory and fail clos
 
 Arrays, lists, enumerable/read-only collection interfaces, and mutable/read-only dictionary interfaces are generated without LINQ allocation. Countable indexed inputs use capacity-aware loops; general `IEnumerable<T>` inputs are enumerated once.
 
-Recursive contracts are rejected by default. `[MapMaxDepth(n)]` opts a method into bounded recursion using an integer argument on generated helpers; ordinary non-recursive mappings pay no reference-tracker allocation. Exhaustion returns `default` by default or throws when `ExhaustionBehavior = DepthExhaustionBehavior.Throw`. Reference preservation and merge-by-identity are not currently supported.
+Recursive contracts are rejected by default. `[MapMaxDepth(n)]` opts a method into bounded recursion using an integer argument on generated helpers. `[MapReferenceTracking]` instead enables invocation-local reference-identity tracking for mutable targets that can be allocated before their members are assigned. Repeated references, self-cycles, and multi-object cycles reuse the same target instance. A previously tracked reference resolves before the depth policy; depth applies only when allocating a new target. Ordinary mappings allocate no tracker.
+
+Reference tracking keys each source identity by its generated target contract, is never shared between calls or threads, and does not infer domain or persistence keys. The same source can therefore participate in more than one target shape without confusing their tracked instances. Constructor-only, required/init-only, factory-created, nullable-root, and existing-target tracking shapes fail with `DMPR105` rather than changing construction semantics.
+
+## Closed-world runtime registry
+
+`[MapRegistry]` on a mapper generates `TryMapRuntime(object, Type, out object?)` and `MapRuntime(object, Type)`. Only successfully generated static, non-generic, one-parameter create mappings in that mapper participate. Dispatch uses exact source types by default and direct calls; `[MapRegistryDerived]` explicitly permits assignable derived-source dispatch for one pair. Unknown pairs return `false` or make `MapRuntime` throw `InvalidOperationException` with a stable source/target message, and duplicate pairs produce `DMPR107`.
+
+Registry methods are stateless and thread-safe. Declared collection-to-collection mapping methods can participate like any other known pair. DomainMapper does not scan assemblies, resolve services, or choose a pair from runtime business state.
+
+## Provider-neutral projections
+
+Install the independent `DomainMapper.Projections` contract package alongside `DomainMapper`, then bind a parameterless `Expression<Func<TSource, TTarget>>` method to an existing mapping with `[MapProjection(nameof(Map))]`. The generator emits one cached expression instance containing direct construction and member access. Consumers compose and execute it using standard query APIs.
+
+The supported subset includes constructors, member initialization, renames, nested paths, null propagation, null substitution, and implicit pure conversions. Completion hooks, conditions, factories, reference tracking, depth guards, collection mutation, additional parameters, recursive shapes, and unsupported conversions produce `DMPR106`. DomainMapper never compiles the expression, materializes a query, inserts `AsEnumerable`, or catches provider translation failures.
 
 ## Mapping composition and inheritance
 
@@ -83,10 +97,10 @@ Accessible inherited properties participate in convention and completeness check
 
 ## Current limitations
 
-- No `IQueryable`/EF Core/OData projection expressions.
-- No generated runtime registry or Microsoft DI facade.
-- No reference-preserving cycle tracker.
+- Projection collection transforms and arbitrary method calls are not in the provider-neutral expression subset.
+- Reference tracking requires mutable two-phase target construction.
+- The runtime registry has no Microsoft DI adapter; direct generated methods remain preferred when types are known.
 - No unrestricted runtime derived-type dispatch or reflection scanning.
 - No private-member mutation.
 
-These limitations are replacement blockers for affected eDC paths; those paths must remain on their current implementation or use an explicit application-owned rewrite until the corresponding feature is delivered.
+Provider execution behavior, persistence semantics, query filtering/paging, and consumer migration remain the consuming application's responsibility.

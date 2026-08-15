@@ -60,7 +60,7 @@ jobs:
       - run: sudo apt update && sudo apt -y install zipmerge # zipmerge is used to merge the multi target nupkg
       - uses: actions/setup-dotnet@v5
       - run: dotnet tool restore
-      - run: RELEASE_VERSION="1.1.0-dev.$GITHUB_RUN_ID" ./build/package.sh
+      - run: RELEASE_VERSION="1.2.0-dev.$GITHUB_RUN_ID" ./build/package.sh
       - uses: actions/upload-artifact@v7
         with:
           name: domainmapper-nupkg
@@ -85,9 +85,11 @@ jobs:
           name: domainmapper-nupkg
           path: artifacts
       # Rule 52 anonymously probes repository and project URLs, which cannot succeed while the repository is private.
-      - run: >-
-          dotnet meziantou.validate-nuget-package --github-token "$GITHUB_TOKEN"
-          --excluded-rule-ids 52 ./artifacts/*.nupkg
+      - run: |
+          for package in ./artifacts/*.nupkg; do
+            dotnet meziantou.validate-nuget-package --github-token "$GITHUB_TOKEN" \
+              --excluded-rule-ids 52 "$package"
+          done
         env:
           GITHUB_TOKEN: ${{ github.token }}
   integration-test:
@@ -126,12 +128,19 @@ jobs:
           dotnet build
           -f net${{ matrix.dotnet }}
           -p:DomainMapperPackageSmokeTargetFramework=net${{ matrix.dotnet }}
-          -p:DomainMapperNugetPackageVersion="1.1.0-dev.$GITHUB_RUN_ID"
+          -p:DomainMapperNugetPackageVersion="1.2.0-dev.$GITHUB_RUN_ID"
         working-directory: ./samples/DomainMapper.PackageSmoke
       - run: >-
           dotnet run --no-build
           -f net${{ matrix.dotnet }}
           -p:DomainMapperPackageSmokeTargetFramework=net${{ matrix.dotnet }}
+        working-directory: ./samples/DomainMapper.PackageSmoke
+      - run: >-
+          dotnet run
+          -f net${{ matrix.dotnet }}
+          -p:DomainMapperPackageSmokeTargetFramework=net${{ matrix.dotnet }}
+          -p:DomainMapperProjectionSmoke=true
+          -p:DomainMapperNugetPackageVersion="1.2.0-dev.$GITHUB_RUN_ID"
         working-directory: ./samples/DomainMapper.PackageSmoke
   integration-test-net-framework:
     needs: package
@@ -151,12 +160,19 @@ jobs:
           dotnet build
           -f net48
           -p:DomainMapperPackageSmokeTargetFramework=net48
-          -p:DomainMapperNugetPackageVersion=1.1.0-dev.$env:GITHUB_RUN_ID
+          -p:DomainMapperNugetPackageVersion=1.2.0-dev.$env:GITHUB_RUN_ID
         working-directory: ./samples/DomainMapper.PackageSmoke
       - run: >-
           dotnet run --no-build
           -f net48
           -p:DomainMapperPackageSmokeTargetFramework=net48
+        working-directory: ./samples/DomainMapper.PackageSmoke
+      - run: >-
+          dotnet run
+          -f net48
+          -p:DomainMapperPackageSmokeTargetFramework=net48
+          -p:DomainMapperProjectionSmoke=true
+          -p:DomainMapperNugetPackageVersion=1.2.0-dev.$env:GITHUB_RUN_ID
         working-directory: ./samples/DomainMapper.PackageSmoke
   sample:
     runs-on: ubuntu-latest
@@ -175,7 +191,23 @@ jobs:
       # use nupkg artifact instead of project references
       - run: dotnet nuget add source "$(pwd)/artifacts"
       - run: dotnet clean
-      - run: dotnet build -p:DomainMapperNugetPackageVersion="1.1.0-dev.$GITHUB_RUN_ID"
+      - run: dotnet build -p:DomainMapperNugetPackageVersion="1.2.0-dev.$GITHUB_RUN_ID"
         working-directory: ./samples/DomainMapper.Sample
       - run: dotnet run --no-build
         working-directory: ./samples/DomainMapper.Sample
+  native-aot:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+      - uses: actions/download-artifact@v8
+        with:
+          name: domainmapper-nupkg
+          path: artifacts
+      - run: dotnet nuget add source "$(pwd)/artifacts"
+      - run: >-
+          dotnet publish samples/DomainMapper.AotSmoke/DomainMapper.AotSmoke.csproj
+          --configuration Release -p:HUSKY=0 -p:TreatWarningsAsErrors=true
+          -p:DomainMapperNugetPackageVersion="1.2.0-dev.$GITHUB_RUN_ID"
+      - run: ./artifacts/publish/DomainMapper.AotSmoke/release/DomainMapper.AotSmoke

@@ -12,17 +12,24 @@ public sealed class DomainMapperGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var mapperTypes = context.SyntaxProvider.ForAttributeWithMetadataName(
-            MapperAttribute,
-            static (node, _) => node is TypeDeclarationSyntax,
-            static (attributeContext, _) => (INamedTypeSymbol)attributeContext.TargetSymbol
-        );
+        var mapperTypes = context
+            .SyntaxProvider.ForAttributeWithMetadataName(
+                MapperAttribute,
+                static (node, _) => node is TypeDeclarationSyntax,
+                static (attributeContext, _) =>
+                    MapperGenerationInput.Create(
+                        (INamedTypeSymbol)attributeContext.TargetSymbol,
+                        attributeContext.SemanticModel.Compilation
+                    )
+            )
+            .WithComparer(MapperGenerationInputComparer.Instance)
+            .WithTrackingName("MapperContracts");
 
         context.RegisterSourceOutput(
-            mapperTypes.Combine(context.CompilationProvider),
+            mapperTypes,
             static (productionContext, input) =>
             {
-                var result = MapperCompiler.Compile(input.Left, input.Right, productionContext.CancellationToken);
+                var result = MapperCompiler.Compile(input.MapperType, input.Compilation, productionContext.CancellationToken);
                 foreach (var diagnostic in result.Diagnostics)
                 {
                     productionContext.ReportDiagnostic(diagnostic);

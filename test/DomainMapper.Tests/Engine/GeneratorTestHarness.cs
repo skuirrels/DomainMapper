@@ -33,6 +33,19 @@ internal static class GeneratorTestHarness
         return new GenerationResult(generatedSource, generatorDiagnostics, errors, warnings, generatedTrees.Length, outputCompilation);
     }
 
+    public static CSharpCompilation CreateCompilation(
+        IEnumerable<SyntaxTree> syntaxTrees,
+        params MetadataReference[] additionalReferences
+    ) =>
+        CSharpCompilation.Create(
+            $"DomainMapper.IncrementalTests.{Guid.NewGuid():N}",
+            syntaxTrees,
+            TrustedPlatformReferences()
+                .Add(MetadataReference.CreateFromFile(typeof(DomainMapperAttribute).Assembly.Location))
+                .AddRange(additionalReferences),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable)
+        );
+
     public static T InvokeStatic<T>(GenerationResult result, string typeName, string methodName)
     {
         using var stream = new MemoryStream();

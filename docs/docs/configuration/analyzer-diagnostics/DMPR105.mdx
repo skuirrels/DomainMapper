@@ -1,0 +1,5 @@
+# DMPR105 — Reference tracking target is not supported
+
+Reference preservation requires a non-null source and a mutable target that DomainMapper can allocate before mapping its members. Constructor-only, required/init-only, factory-created, nullable-root, and existing-target shapes are rejected because silently changing their construction semantics could bypass invariants.
+
+Use a mutable two-phase target, remove `[MapReferenceTracking]`, or map the unsupported graph explicitly in caller-owned code.

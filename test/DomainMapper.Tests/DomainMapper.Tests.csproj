@@ -5,6 +5,7 @@
     <IncludeMeziantouXunitParallelTestFramework>false</IncludeMeziantouXunitParallelTestFramework>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../src/DomainMapper.Projections/DomainMapper.Projections.csproj" />
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\.github\workflows\release.yml" Link="release.yml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

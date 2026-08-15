@@ -3,11 +3,13 @@
     <Project Path="benchmarks/DomainMapper.Benchmarks/DomainMapper.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/samples/">
+    <Project Path="samples/DomainMapper.AotSmoke/DomainMapper.AotSmoke.csproj" />
     <Project Path="samples/DomainMapper.PackageSmoke/DomainMapper.PackageSmoke.csproj" />
     <Project Path="samples/DomainMapper.Sample/DomainMapper.Sample.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/DomainMapper.Abstractions/DomainMapper.Abstractions.csproj" />
+    <Project Path="src/DomainMapper.Projections/DomainMapper.Projections.csproj" />
     <Project Path="src/DomainMapper/DomainMapper.csproj" />
   </Folder>
   <Folder Name="/test/">

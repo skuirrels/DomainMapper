@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>DomainMapper.Projections</PackageId>
+    <PackageDescription>Provider-neutral expression-tree projections for DomainMapper.</PackageDescription>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>logo.png</PackageIcon>
+    <PackageTags>Mapper SourceGenerator ExpressionTree IQueryable</PackageTags>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/skuirrels/DomainMapper</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/skuirrels/DomainMapper</PackageProjectUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <MeziantouPolyfill_IncludedPolyfills>T:System.Diagnostics.CodeAnalysis.NotNullWhenAttribute</MeziantouPolyfill_IncludedPolyfills>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../DomainMapper/DomainMapper.csproj" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../docs/static/img/logo.png" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

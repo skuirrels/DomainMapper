@@ -4,6 +4,8 @@
     <LangVersion>latest</LangVersion>
     <TargetFramework Condition="'$(DomainMapperPackageSmokeTargetFramework)' != ''"
       >$(DomainMapperPackageSmokeTargetFramework)</TargetFramework>
+    <DefineConstants Condition="'$(DomainMapperProjectionSmoke)' == 'true'"
+      >$(DefineConstants);DOMAINMAPPER_PROJECTION_SMOKE</DefineConstants>
   </PropertyGroup>
   <ItemGroup Condition="'$(DomainMapperNugetPackageVersion)' == ''">
     <ProjectReference Include="..\..\src\DomainMapper\DomainMapper.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
@@ -15,5 +17,11 @@
   </ItemGroup>
   <ItemGroup Condition="'$(DomainMapperNugetPackageVersion)' != ''">
     <PackageReference Include="DomainMapper" Version="$(DomainMapperNugetPackageVersion)" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(DomainMapperProjectionSmoke)' == 'true' AND '$(DomainMapperNugetPackageVersion)' == ''">
+    <ProjectReference Include="..\..\src\DomainMapper.Projections\DomainMapper.Projections.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(DomainMapperProjectionSmoke)' == 'true' AND '$(DomainMapperNugetPackageVersion)' != ''">
+    <PackageReference Include="DomainMapper.Projections" Version="$(DomainMapperNugetPackageVersion)" />
   </ItemGroup>
 </Project>
