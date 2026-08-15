@@ -787,6 +787,7 @@ public sealed class GeneratorRegressionTests
                 private static TenantId CreateId(int id, string tenantId) => new(id, tenantId);
 
                 [MapToFactory(nameof(Target.Create))]
+                [MappingCompleteness(MappingCompleteness.Source)]
                 public static partial Target Map(Source source, string tenantId);
             }
 

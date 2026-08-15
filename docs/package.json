@@ -45,6 +45,9 @@
     "typescript": "5.9.3",
     "unist-util-visit": "5.1.0"
   },
+  "overrides": {
+    "websocket-driver": "0.7.5"
+  },
   "browserslist": {
     "production": [
       ">0.5%",

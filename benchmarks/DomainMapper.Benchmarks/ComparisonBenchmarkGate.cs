@@ -77,6 +77,7 @@ internal sealed record BenchmarkComparison(
     int MapperlySampleCount,
     int DomainMapperSampleCount,
     bool Passed,
+    string Winner,
     string? Failure
 );
 
@@ -245,6 +246,7 @@ internal static class ComparisonBenchmarkGate
             mapperlyValues.Length,
             domainMapperValues.Length,
             failures.Count == 0,
+            expectation == "FASTER" && failures.Count == 0 ? "DomainMapper" : "No meaningful winner",
             failures.Count == 0 ? null : string.Join("; ", failures)
         );
     }
@@ -332,9 +334,9 @@ internal static class ComparisonBenchmarkGate
         );
         markdown.AppendLine();
         markdown.AppendLine(
-            "| Scenario | Expectation | Mapperly median | DomainMapper median | Time ratio | Upper difference bound | Reports / samples | Allocation | Result |"
+            "| Scenario | Expectation | Mapperly median | DomainMapper median | Time ratio | Upper difference bound | Reports / samples | Allocation | Result | Winner |"
         );
-        markdown.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |");
+        markdown.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: | --- |");
         foreach (var comparison in result.Comparisons)
         {
             markdown.AppendLine(
@@ -343,7 +345,7 @@ internal static class ComparisonBenchmarkGate
                     + $"{comparison.UpperDifferenceConfidenceBoundNanoseconds:F3} ns | "
                     + $"{comparison.ReportCount} / {comparison.MapperlySampleCount}:{comparison.DomainMapperSampleCount} | "
                     + $"{comparison.MapperlyAllocatedBytes:F0} B / {comparison.DomainMapperAllocatedBytes:F0} B | "
-                    + $"{(comparison.Passed ? "PASS" : "FAIL")} |"
+                    + $"{(comparison.Passed ? "PASS" : "FAIL")} | {comparison.Winner} |"
             );
             if (comparison.Failure != null)
                 markdown.AppendLine($"\n- {comparison.Scenario}: {comparison.Failure}");

@@ -14,6 +14,7 @@ public class ComparisonBenchmarkGateTest
 
         result.Passed.ShouldBeTrue();
         result.Comparisons.ShouldHaveSingleItem().Scenario.ShouldBe("Flat");
+        result.Comparisons.ShouldHaveSingleItem().Winner.ShouldBe("No meaningful winner");
     }
 
     [Fact]
@@ -147,6 +148,7 @@ public class ComparisonBenchmarkGateTest
         var comparison = result.Comparisons.ShouldHaveSingleItem();
         comparison.Passed.ShouldBeTrue();
         comparison.Expectation.ShouldBe("FASTER");
+        comparison.Winner.ShouldBe("DomainMapper");
         comparison.UpperDifferenceConfidenceBoundNanoseconds.ShouldBeLessThan(0);
     }
 

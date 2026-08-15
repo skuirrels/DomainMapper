@@ -5,14 +5,14 @@
 
 **Map data. Preserve invariants.**
 
-DomainMapper is a small compile-time mapper for .NET with a domain-driven design bias. Its source generator emits direct C# and does not use runtime reflection. Version `1.0.0` focuses on an explicit API for mapping data through domain-owned constructors and factories.
+DomainMapper is a small compile-time mapper for .NET with a domain-driven design bias. Its source generator emits direct C# and does not use runtime reflection. Version `1.1.0` adds explicit mapping contracts while retaining domain-owned constructors and factories.
 
-## Version 1.0.0
+## Version 1.1.0
 
-[`v1.0.0`](https://github.com/skuirrels/DomainMapper/releases/tag/v1.0.0) is the first public release of DomainMapper. Install it from NuGet with:
+Install DomainMapper from NuGet with:
 
 ```bash
-dotnet add package DomainMapper --version 1.0.0
+dotnet add package DomainMapper --version 1.1.0
 ```
 
 ## Domain-first mapping
@@ -35,7 +35,7 @@ public static partial class OrderMapper
 
 ## Supported mappings
 
-DomainMapper 1.0.0 supports:
+DomainMapper 1.1.0 supports:
 
 - mutable targets with accessible parameterless constructors;
 - immutable targets and records with accessible constructors;
@@ -43,12 +43,19 @@ DomainMapper 1.0.0 supports:
 - mapper-owned source-value and member-bound conversions through `[DomainFactory]`;
 - nested objects, arrays, lists, read-only collection targets, and mutable or read-only dictionary interfaces;
 - existing-target property updates;
+- explicit property and field renames, including nested source paths;
+- typed computed target members and additional mapping parameters;
+- target/source completeness, typed ignores, and allow-listed partial updates;
+- conditional and null-aware assignments with constant substitution;
+- typed completion hooks, mapping composition, and bounded recursion;
 - nested and generic mapper types and generic mapping methods;
 - direct generated code that enumerates general sequences and preallocates only when the source exposes a count.
 
+Fields participate when they are named by an explicit mapping contract; convention mapping remains property-only for compatibility. See the [authoritative capabilities and limitations](docs/docs/configuration/capabilities.md) and [versioned changelog](CHANGELOG.md).
+
 Construction is fail-closed: every accessible writable target member must be mapped, and source-matched target state that is not writable from the generated mapper is rejected with `DMPR101`.
 
-Configuration-heavy mapping, private-member mutation, projections, reference preservation, and derived-type dispatch are intentionally outside the 1.0.0 contract.
+Query projections, a generated runtime registry, private-member mutation, reference preservation, and derived-type dispatch remain unsupported.
 
 ## Build and test
 
@@ -76,7 +83,7 @@ See [the benchmark methodology](docs/benchmarks.md).
 
 ## Project layout
 
-- `src/DomainMapper.Abstractions` — four public, DDD-facing API types.
+- `src/DomainMapper.Abstractions` — public, compile-time mapping attributes and policy types.
 - `src/DomainMapper/Engine` — contract discovery, semantic planning, conversion policy, and C# emission.
 - `test/DomainMapper.Tests` — engine contract and performance-gate tests.
 - `benchmarks/DomainMapper.Benchmarks` — balanced DomainMapper-versus-Mapperly evidence.

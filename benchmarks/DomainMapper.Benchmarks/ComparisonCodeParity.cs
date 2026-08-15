@@ -29,6 +29,7 @@ internal static class ComparisonCodeParity
     private static readonly IReadOnlyDictionary<string, string> _scenarioRoots = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["Flat"] = "MapFlat",
+        ["RenamedFlattened"] = "MapRenamed",
         ["NestedCollection"] = "MapOrder",
         ["ExistingTarget"] = "UpdateFlat",
         ["DomainFactory"] = "Place",
@@ -44,6 +45,7 @@ internal static class ComparisonCodeParity
         var domainMapper = MapperModel.Create(DomainMapperClassName, domainMapperGeneratedSource, mapperDeclarationsSource);
         var mapperly = MapperModel.Create(MapperlyClassName, mapperlyGeneratedSource, mapperDeclarationsSource);
         var scenarios = _scenarioRoots
+            .Where(x => domainMapper.HasMethod(x.Value) || mapperly.HasMethod(x.Value))
             .Select(x => BuildEntry(x.Key, x.Value, domainMapper, mapperly))
             .OrderBy(x => x.Scenario, StringComparer.Ordinal)
             .ToArray();
@@ -100,6 +102,8 @@ internal static class ComparisonCodeParity
             AddMethods(methods, generatedSource, className);
             return new MapperModel(methods);
         }
+
+        public bool HasMethod(string methodName) => _methods.ContainsKey(methodName);
 
         public string Canonicalize(string rootMethod)
         {
