@@ -85,6 +85,7 @@ internal sealed class MapperCompiler
     private readonly Dictionary<string, string> _helperNames = new(StringComparer.Ordinal);
     private readonly HashSet<string> _usedHelperNames = new(StringComparer.Ordinal);
     private readonly HashSet<IMethodSymbol> _activeDomainFactories = new(SymbolEqualityComparer.Default);
+    private readonly Dictionary<ITypeSymbol, IReadOnlyList<MappingMember>> _mappingMembers = new(SymbolEqualityComparer.Default);
     private readonly ImmutableArray<IMethodSymbol> _mappingMethods;
     private readonly IReadOnlyDictionary<string, ImmutableArray<IMethodSymbol>> _configurationHelpers;
 
@@ -2669,8 +2670,11 @@ internal sealed class MapperCompiler
             || configuration.OnlyTargets?.Contains(memberName) == true
         );
 
-    private IEnumerable<MappingMember> GetAllMappingMembers(ITypeSymbol type)
+    private IReadOnlyList<MappingMember> GetAllMappingMembers(ITypeSymbol type)
     {
+        if (_mappingMembers.TryGetValue(type, out var cachedMembers))
+            return cachedMembers;
+
         var seen = new HashSet<string>(StringComparer.Ordinal);
         if (type is not INamedTypeSymbol named)
             return [];
@@ -2713,29 +2717,30 @@ internal sealed class MapperCompiler
             }
         }
 
-        if (named.TypeKind != TypeKind.Interface)
-            return members;
-
-        foreach (var interfaceType in named.AllInterfaces)
+        if (named.TypeKind == TypeKind.Interface)
         {
-            foreach (var property in interfaceType.GetMembers().OfType<IPropertySymbol>())
+            foreach (var interfaceType in named.AllInterfaces)
             {
-                if (seen.Add(property.Name))
+                foreach (var property in interfaceType.GetMembers().OfType<IPropertySymbol>())
                 {
-                    members.Add(
-                        new MappingMember(
-                            property,
-                            property.Type,
-                            !property.IsStatic && !property.IsIndexer && property.GetMethod != null && IsAccessible(property.GetMethod),
-                            !property.IsStatic && !property.IsIndexer && property.SetMethod != null && IsAccessible(property.SetMethod),
-                            property.SetMethod?.IsInitOnly == true,
-                            property.IsRequired
-                        )
-                    );
+                    if (seen.Add(property.Name))
+                    {
+                        members.Add(
+                            new MappingMember(
+                                property,
+                                property.Type,
+                                !property.IsStatic && !property.IsIndexer && property.GetMethod != null && IsAccessible(property.GetMethod),
+                                !property.IsStatic && !property.IsIndexer && property.SetMethod != null && IsAccessible(property.SetMethod),
+                                property.SetMethod?.IsInitOnly == true,
+                                property.IsRequired
+                            )
+                        );
+                    }
                 }
             }
         }
 
+        _mappingMembers.Add(type, members);
         return members;
     }
 
