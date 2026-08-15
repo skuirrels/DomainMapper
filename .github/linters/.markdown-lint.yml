@@ -10,3 +10,5 @@ no-trailing-punctuation: false
 no-inline-html: false
 no-emphasis-as-heading: false
 blank_lines: false
+no-duplicate-heading:
+  siblings_only: true

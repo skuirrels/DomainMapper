@@ -3,7 +3,7 @@
 
 const { themes } = require('prism-react-renderer');
 
-const domainMapperVersion = process.env.DOMAINMAPPER_VERSION || '0.0.1-dev';
+const domainMapperVersion = process.env.DOMAINMAPPER_VERSION || '1.1.0-dev';
 const environment = process.env.ENVIRONMENT || 'local';
 
 /** @type {import('./src/custom-fields').CustomFields} */

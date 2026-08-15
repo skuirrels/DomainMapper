@@ -7,7 +7,7 @@ set -Eeuo pipefail
 
 roslyn_versions=('4.8' '4.11' '4.14' '5.0')
 
-RELEASE_VERSION=${RELEASE_VERSION:-"0.0.1-dev.$(date +%s)"}
+RELEASE_VERSION=${RELEASE_VERSION:-"1.1.0-dev.$(date +%s)"}
 RELEASE_NOTES=${RELEASE_NOTES:-''}
 
 # https://stackoverflow.com/a/246128/3302887
