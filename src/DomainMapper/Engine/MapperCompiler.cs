@@ -149,6 +149,9 @@ internal sealed class MapperCompiler
         bool isUpdate
     )
     {
+        if (!HasExplicitConfiguration(method))
+            return BuildConventionConfiguration(method, sourceType, targetType);
+
         var valid = true;
         var comparer = StringComparer.OrdinalIgnoreCase;
         var bindings = ImmutableDictionary.CreateBuilder<string, MemberBinding>(comparer);
@@ -544,6 +547,55 @@ internal sealed class MapperCompiler
             )
             : null;
     }
+
+    private bool HasExplicitConfiguration(IMethodSymbol method)
+    {
+        if (_configurationHelpers.ContainsKey(method.Name))
+            return true;
+
+        foreach (var attribute in method.GetAttributes())
+        {
+            var attributeName = attribute.AttributeClass?.ToDisplayString();
+            if (
+                attributeName
+                is IgnoreSourceMemberAttribute
+                    or IgnoreTargetMemberAttribute
+                    or IncludeMappingAttribute
+                    or MapMemberAttribute
+                    or MapMaxDepthAttribute
+                    or MapNullAttribute
+                    or MapNullSubstituteAttribute
+                    or MapOnlyTargetMembersAttribute
+                    or MappingCompletenessAttribute
+            )
+                return true;
+        }
+
+        return false;
+    }
+
+    private static MappingMethodConfiguration BuildConventionConfiguration(
+        IMethodSymbol method,
+        ITypeSymbol sourceType,
+        ITypeSymbol targetType
+    ) =>
+        new(
+            method,
+            sourceType,
+            targetType,
+            0,
+            ImmutableDictionary<string, MemberBinding>.Empty,
+            ImmutableHashSet<string>.Empty,
+            ImmutableHashSet<string>.Empty,
+            null,
+            ImmutableDictionary<string, int>.Empty,
+            ImmutableDictionary<string, string>.Empty,
+            ImmutableDictionary<string, IMethodSymbol>.Empty,
+            ImmutableDictionary<string, IMethodSymbol>.Empty,
+            ImmutableArray<IMethodSymbol>.Empty,
+            null,
+            0
+        );
 
     private void BuildRootContract(IMethodSymbol method)
     {
