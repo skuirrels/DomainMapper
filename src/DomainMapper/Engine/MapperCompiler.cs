@@ -14,6 +14,7 @@ internal sealed class MapperCompiler
     private const string IgnoreSourceMemberAttribute = "DomainMapper.Abstractions.IgnoreSourceMemberAttribute";
     private const string IgnoreTargetMemberAttribute = "DomainMapper.Abstractions.IgnoreTargetMemberAttribute";
     private const string IncludeMappingAttribute = "DomainMapper.Abstractions.IncludeMappingAttribute";
+    private const string MapCollectionAttribute = "DomainMapper.Abstractions.MapCollectionAttribute";
     private const string MapConditionAttribute = "DomainMapper.Abstractions.MapConditionAttribute";
     private const string MapAfterAttribute = "DomainMapper.Abstractions.MapAfterAttribute";
     private const string MapMemberAttribute = "DomainMapper.Abstractions.MapMemberAttribute";
@@ -21,9 +22,13 @@ internal sealed class MapperCompiler
     private const string MapNullAttribute = "DomainMapper.Abstractions.MapNullAttribute";
     private const string MapNullSubstituteAttribute = "DomainMapper.Abstractions.MapNullSubstituteAttribute";
     private const string MapOnlyTargetMembersAttribute = "DomainMapper.Abstractions.MapOnlyTargetMembersAttribute";
+    private const string MapReferenceTrackingAttribute = "DomainMapper.Abstractions.MapReferenceTrackingAttribute";
+    private const string MapRegistryAttribute = "DomainMapper.Abstractions.MapRegistryAttribute";
+    private const string MapRegistryDerivedAttribute = "DomainMapper.Abstractions.MapRegistryDerivedAttribute";
     private const string MapTargetMemberAttribute = "DomainMapper.Abstractions.MapTargetMemberAttribute";
     private const string MapToFactoryAttribute = "DomainMapper.Abstractions.MapToFactoryAttribute";
     private const string MappingCompletenessAttribute = "DomainMapper.Abstractions.MappingCompletenessAttribute";
+    private const string MapProjectionAttribute = "DomainMapper.Projections.MapProjectionAttribute";
 
     private static readonly DiagnosticDescriptor UnsupportedMethod = new(
         "DMPR100",
@@ -70,6 +75,33 @@ internal sealed class MapperCompiler
         true
     );
 
+    private static readonly DiagnosticDescriptor UnsupportedReferenceTracking = new(
+        "DMPR105",
+        "Reference tracking target is not supported",
+        "Mapping '{0}' cannot preserve references: {1}",
+        "DomainMapper",
+        DiagnosticSeverity.Error,
+        true
+    );
+
+    private static readonly DiagnosticDescriptor InvalidRegistry = new(
+        "DMPR107",
+        "Runtime registry is invalid",
+        "Mapper '{0}' runtime registry is invalid: {1}",
+        "DomainMapper",
+        DiagnosticSeverity.Error,
+        true
+    );
+
+    private static readonly DiagnosticDescriptor InvalidProjection = new(
+        "DMPR106",
+        "Projection contract is not supported",
+        "Projection '{0}' for member '{1}' cannot use {2}; {3}",
+        "DomainMapper",
+        DiagnosticSeverity.Error,
+        true
+    );
+
     private static readonly SymbolDisplayFormat TypeDisplayFormat = SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
         SymbolDisplayFormat.FullyQualifiedFormat.MiscellaneousOptions
             | SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
@@ -87,21 +119,37 @@ internal sealed class MapperCompiler
     private readonly HashSet<IMethodSymbol> _activeDomainFactories = new(SymbolEqualityComparer.Default);
     private readonly Dictionary<ITypeSymbol, IReadOnlyList<MappingMember>> _mappingMembers = new(SymbolEqualityComparer.Default);
     private readonly ImmutableArray<IMethodSymbol> _mappingMethods;
+    private readonly ImmutableArray<IMethodSymbol> _projectionMethods;
     private readonly IReadOnlyDictionary<string, ImmutableArray<IMethodSymbol>> _configurationHelpers;
+    private readonly List<string> _supportMembers = [];
+    private readonly Dictionary<IMethodSymbol, MappingMethodConfiguration> _configurations = new(SymbolEqualityComparer.Default);
+    private readonly HashSet<IMethodSymbol> _successfulMappingMethods = new(SymbolEqualityComparer.Default);
+    private string? _referenceKeyName;
 
     private MapperCompiler(INamedTypeSymbol mapperType, Compilation compilation)
     {
         _mapperType = mapperType;
         _compilation = compilation;
-        _mappingMethods = mapperType
+        var partialMethods = mapperType
             .GetMembers()
             .OfType<IMethodSymbol>()
             .Where(x => x.IsPartialDefinition && x.PartialImplementationPart == null)
             .OrderBy(x => x.Locations.FirstOrDefault()?.SourceSpan.Start ?? int.MaxValue)
             .ToImmutableArray();
+        _projectionMethods = partialMethods.Where(x => HasAttribute(x, MapProjectionAttribute)).ToImmutableArray();
+        _mappingMethods = partialMethods.Where(x => !HasAttribute(x, MapProjectionAttribute)).ToImmutableArray();
         foreach (var memberName in GetTypeHierarchy(mapperType).SelectMany(x => x.GetMembers()).Select(x => x.Name))
         {
             _usedHelperNames.Add(memberName);
+        }
+        for (var baseType = mapperType.BaseType; baseType != null; baseType = baseType.BaseType)
+        {
+            foreach (
+                var memberName in baseType.GetMembers().Where(x => x.DeclaredAccessibility != Accessibility.Private).Select(x => x.Name)
+            )
+            {
+                _usedHelperNames.Add(memberName);
+            }
         }
         _configurationHelpers = IndexConfigurationHelpers(mapperType);
     }
@@ -136,9 +184,490 @@ internal sealed class MapperCompiler
             BuildHelperContract(_pendingHelpers.Dequeue());
         }
 
-        var source = _rootContracts.Count == 0 ? null : EmitSource();
+        BuildProjections();
+        BuildRuntimeRegistry();
+
+        var source = _rootContracts.Count == 0 && _supportMembers.Count == 0 ? null : EmitSource();
         return new MapperCompilation(BuildHintName(_mapperType), source, _diagnostics.ToImmutableArray());
     }
+
+    [SuppressMessage(
+        "Maintainability",
+        "MA0051",
+        Justification = "Keeps closed-world registration validation and emitted dispatch ordering together."
+    )]
+    private void BuildRuntimeRegistry()
+    {
+        if (Attribute(_mapperType, MapRegistryAttribute) == null)
+            return;
+
+        if (HasVisibleMapperMember("TryMapRuntime") || HasVisibleMapperMember("MapRuntime"))
+        {
+            _diagnostics.Add(
+                Diagnostic.Create(
+                    InvalidRegistry,
+                    _mapperType.Locations.FirstOrDefault(),
+                    _mapperType.Name,
+                    "generated method names TryMapRuntime and MapRuntime must be available"
+                )
+            );
+            return;
+        }
+
+        var candidates = _mappingMethods
+            .Where(x =>
+                x.IsStatic
+                && !x.ReturnsVoid
+                && x.TypeParameters.Length == 0
+                && x.Parameters is [{ RefKind: RefKind.None }]
+                && _successfulMappingMethods.Contains(x)
+            )
+            .ToArray();
+        var duplicates = candidates
+            .GroupBy(x => $"{RuntimeSourceTypeName(x.Parameters[0].Type)}->{RuntimeTypeName(x.ReturnType)}", StringComparer.Ordinal)
+            .Where(x => x.Count() > 1)
+            .ToArray();
+        if (duplicates.Length > 0)
+        {
+            foreach (var duplicate in duplicates)
+            {
+                _diagnostics.Add(
+                    Diagnostic.Create(
+                        InvalidRegistry,
+                        _mapperType.Locations.FirstOrDefault(),
+                        _mapperType.Name,
+                        $"mapping pair '{duplicate.Key}' is registered more than once"
+                    )
+                );
+            }
+            return;
+        }
+
+        var derivedCandidates = candidates.Where(x => HasAttribute(x, MapRegistryDerivedAttribute)).ToArray();
+        var invalidDerivedCandidate = derivedCandidates.FirstOrDefault(x => !x.Parameters[0].Type.IsReferenceType);
+        if (invalidDerivedCandidate != null)
+        {
+            _diagnostics.Add(
+                Diagnostic.Create(
+                    InvalidRegistry,
+                    invalidDerivedCandidate.Locations.FirstOrDefault(),
+                    _mapperType.Name,
+                    $"derived-source mapping '{invalidDerivedCandidate.Name}' requires a reference-type source"
+                )
+            );
+            return;
+        }
+        for (var left = 0; left < derivedCandidates.Length; left++)
+        {
+            for (var right = left + 1; right < derivedCandidates.Length; right++)
+            {
+                var first = derivedCandidates[left];
+                var second = derivedCandidates[right];
+                if (!RuntimeTypesEqual(first.ReturnType, second.ReturnType))
+                    continue;
+                var overlaps = RuntimeSourceTypesMayOverlap(first.Parameters[0].Type, second.Parameters[0].Type);
+                if (!overlaps)
+                    continue;
+                _diagnostics.Add(
+                    Diagnostic.Create(
+                        InvalidRegistry,
+                        _mapperType.Locations.FirstOrDefault(),
+                        _mapperType.Name,
+                        $"derived-source mappings '{first.Name}' and '{second.Name}' overlap for target '{second.ReturnType.ToDisplayString()}'"
+                    )
+                );
+                return;
+            }
+        }
+
+        var lines = new List<string>();
+        foreach (
+            var method in candidates.OrderBy(x => HasAttribute(x, MapRegistryDerivedAttribute)).ThenBy(x => x.Name, StringComparer.Ordinal)
+        )
+        {
+            var sourceType = TypeName(method.Parameters[0].Type);
+            var runtimeSourceType = RuntimeSourceTypeName(method.Parameters[0].Type);
+            var runtimeTargetType = RuntimeTypeName(method.ReturnType);
+            var sourceCheck = HasAttribute(method, MapRegistryDerivedAttribute)
+                ? $"source is {runtimeSourceType} typedSource"
+                : $"source.GetType() == typeof({runtimeSourceType})";
+            var sourceArgument = HasAttribute(method, MapRegistryDerivedAttribute) ? "typedSource" : $"({sourceType})source";
+            lines.Add(
+                $"if ({sourceCheck} && targetType == typeof({runtimeTargetType}))\n{{\n    target = {Escape(method.Name)}({sourceArgument});\n    return true;\n}}"
+            );
+        }
+        lines.Add("target = null;\nreturn false;");
+        var visibility = _mapperType.DeclaredAccessibility == Accessibility.Public ? "public" : "internal";
+        _supportMembers.Add(
+            $"[global::System.CodeDom.Compiler.GeneratedCode(\"DomainMapper\", \"0.0.1.0\")]\n"
+                + $"{visibility} static bool TryMapRuntime(object source, global::System.Type targetType, out object? target)\n{{\n"
+                + "    if (source is null) throw new global::System.ArgumentNullException(nameof(source));\n"
+                + "    if (targetType is null) throw new global::System.ArgumentNullException(nameof(targetType));\n"
+                + Indent(string.Join("\n", lines))
+                + "\n}"
+        );
+        _supportMembers.Add(
+            $"[global::System.CodeDom.Compiler.GeneratedCode(\"DomainMapper\", \"0.0.1.0\")]\n"
+                + $"{visibility} static object? MapRuntime(object source, global::System.Type targetType)\n{{\n"
+                + "    if (TryMapRuntime(source, targetType, out var target))\n        return target!;\n"
+                + "    throw new global::System.InvalidOperationException(\"No DomainMapper mapping is registered from '\" + source.GetType() + \"' to '\" + targetType + \"'.\");\n}"
+        );
+    }
+
+    [SuppressMessage(
+        "Maintainability",
+        "MA0051",
+        Justification = "Keeps projection declaration validation and cached member emission together."
+    )]
+    private void BuildProjections()
+    {
+        foreach (var projection in _projectionMethods)
+        {
+            if (!TryGetProjectionTypes(projection, out var sourceType, out var targetType))
+            {
+                ReportInvalidProjection(
+                    projection,
+                    "<root>",
+                    "the declared method shape",
+                    "Declare a parameterless method returning Expression<Func<TSource, TTarget>>."
+                );
+                continue;
+            }
+            if (!TryReadString(Attribute(projection, MapProjectionAttribute)!, 0, out var mappingName))
+            {
+                ReportInvalidProjection(projection, "<root>", "an invalid mapping reference", "Reference one mapping method by name.");
+                continue;
+            }
+
+            var mappings = _mappingMethods
+                .Where(x =>
+                    NamesEqual(x.Name, mappingName)
+                    && !x.ReturnsVoid
+                    && x.Parameters.Length > 0
+                    && TypesEqual(x.Parameters[0].Type, sourceType)
+                    && TypesEqual(x.ReturnType, targetType)
+                )
+                .ToArray();
+            if (mappings.Length != 1)
+            {
+                ReportInvalidProjection(
+                    projection,
+                    "<root>",
+                    "a missing or ambiguous mapping contract",
+                    "Reference one successfully generated create mapping with matching source and target types."
+                );
+                continue;
+            }
+            var mapping = mappings[0];
+            if (!_successfulMappingMethods.Contains(mapping) || !_configurations.TryGetValue(mapping, out var configuration))
+            {
+                ReportInvalidProjection(
+                    projection,
+                    "<root>",
+                    "an invalid mapping contract",
+                    "Fix the referenced in-memory mapping before declaring its projection."
+                );
+                continue;
+            }
+            if (!ValidateProjectionEligibility(projection, mapping, configuration))
+                continue;
+
+            var expression = BuildProjectionExpression(
+                sourceType,
+                targetType,
+                "source",
+                new MappingContext(mapping.TypeParameters, ImmutableArray<MappingValue>.Empty, configuration),
+                new HashSet<string>(StringComparer.Ordinal),
+                out var failureMember
+            );
+            if (expression == null)
+            {
+                ReportInvalidProjection(
+                    projection,
+                    failureMember ?? "<root>",
+                    "an unsupported construction or conversion",
+                    "Use constructor/member initialization and the documented pure conversion subset, or keep this as an in-memory mapping."
+                );
+                continue;
+            }
+
+            var holderName = ReserveMemberName(
+                $"__domainMapperProjection_{Sanitize(projection.Name)}_{StableHash(projection.ToDisplayString()):X8}Holder"
+            );
+            _supportMembers.Add(
+                $"private static class {holderName}\n{{\n"
+                    + "#if NET5_0_OR_GREATER\n"
+                    + "    [global::System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(\"Expression-tree construction requires member metadata.\")]\n"
+                    + "#endif\n"
+                    + $"    static {holderName}() {{ }}\n"
+                    + $"    internal static readonly {TypeName(projection.ReturnType)} Value = source => {expression};\n"
+                    + "}"
+            );
+            _rootContracts.Add(
+                new MappingContract(
+                    projection.Name,
+                    "#if NET5_0_OR_GREATER\n"
+                        + "[global::System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(\"Expression-tree construction requires member metadata and is not supported by DomainMapper under trimming or native AOT.\")]\n"
+                        + "#endif\n"
+                        + BuildDeclaration(projection),
+                    $"return {holderName}.Value;",
+                    MappingShape.Create
+                )
+            );
+        }
+    }
+
+    private bool ValidateProjectionEligibility(IMethodSymbol projection, IMethodSymbol mapping, MappingMethodConfiguration configuration)
+    {
+        var failures = new List<(string Member, string Operation, string Action)>();
+        if (mapping.Parameters.Length != 1)
+            failures.Add(("<root>", "additional mapping parameters", "Use an in-memory mapping for caller-supplied values."));
+        if (ReadFactoryName(mapping) != null)
+            failures.Add(("<root>", "a target factory", "Use a projection-safe constructor or member initializer."));
+        if (configuration.CompletionHooks.Length > 0)
+            failures.Add(("<root>", "completion hooks", "Keep completion hooks on the in-memory mapping only."));
+        if (configuration.PreserveReferences)
+            failures.Add(("<root>", "reference tracking", "Use reference tracking only for in-memory mappings."));
+        if (configuration.MaximumDepth != null)
+            failures.Add(("<root>", "bounded recursion", "Project an acyclic shape or use the in-memory mapping."));
+        failures.AddRange(
+            configuration.Conditions.Keys.Select(x =>
+                (x, "conditional assignment", "Express the condition in the consumer query or use the in-memory mapping.")
+            )
+        );
+        failures.AddRange(
+            configuration.ComputedMembers.Keys.Select(x => (x, "a mapper method call", "Bind a source path or use the in-memory mapping."))
+        );
+        failures.AddRange(
+            configuration.CollectionPolicies.Keys.Select(x =>
+                (x, "existing-target collection mutation", "Collection mutation is not a projection operation.")
+            )
+        );
+        foreach (var failure in failures)
+            ReportInvalidProjection(projection, failure.Member, failure.Operation, failure.Action);
+        return failures.Count == 0;
+    }
+
+    [SuppressMessage(
+        "Maintainability",
+        "MA0051",
+        Justification = "Keeps projection construction fail-closed in one recursive planning flow."
+    )]
+    private string? BuildProjectionExpression(
+        ITypeSymbol sourceType,
+        ITypeSymbol targetType,
+        string sourceExpression,
+        MappingContext context,
+        ISet<string> visiting,
+        out string? failureMember
+    )
+    {
+        failureMember = null;
+        if (TypesEqual(sourceType, targetType))
+            return sourceExpression;
+
+        if (targetType.IsReferenceType && targetType.NullableAnnotation == NullableAnnotation.Annotated)
+        {
+            var target = targetType.WithNullableAnnotation(NullableAnnotation.NotAnnotated);
+            if (sourceType.IsReferenceType && sourceType.NullableAnnotation == NullableAnnotation.Annotated)
+            {
+                var source = sourceType.WithNullableAnnotation(NullableAnnotation.NotAnnotated);
+                var mapped = BuildProjectionExpression(source, target, sourceExpression + "!", context, visiting, out failureMember);
+                return mapped == null ? null : $"{sourceExpression} == null ? null : {mapped}";
+            }
+            return BuildProjectionExpression(sourceType, target, sourceExpression, context, visiting, out failureMember);
+        }
+        var conversion = _compilation.ClassifyConversion(sourceType, targetType);
+        if (conversion.Exists && conversion.IsImplicit && !conversion.IsUserDefined)
+            return sourceExpression;
+        if (IsNullable(sourceType))
+            return null;
+        if (TryGetSequenceElement(sourceType, out _) || TryGetDictionaryTypes(sourceType, out _, out _))
+            return null;
+
+        var key = $"{TypeName(sourceType)}->{TypeName(targetType)}";
+        if (!visiting.Add(key))
+            return null;
+        try
+        {
+            if (
+                targetType
+                    is not INamedTypeSymbol { SpecialType: SpecialType.None, TypeKind: TypeKind.Class or TypeKind.Struct } namedTarget
+                || namedTarget.IsAbstract
+            )
+                return null;
+            var configuration = RootConfiguration(context, sourceType, targetType);
+            foreach (
+                var constructor in namedTarget
+                    .InstanceConstructors.Where(IsAccessible)
+                    .Where(x => !IsRecordCopyConstructor(x, namedTarget))
+                    .OrderByDescending(x => x.Parameters.Length)
+            )
+            {
+                var arguments = new List<string>();
+                var consumed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var valid = true;
+                foreach (var parameter in constructor.Parameters)
+                {
+                    var argument = BuildProjectionMemberValue(
+                        sourceType,
+                        targetType,
+                        sourceExpression,
+                        parameter.Name,
+                        parameter.Type,
+                        context,
+                        visiting,
+                        out failureMember
+                    );
+                    if (argument == null)
+                    {
+                        valid = false;
+                        break;
+                    }
+                    arguments.Add(argument);
+                    consumed.Add(parameter.Name);
+                }
+                if (!valid)
+                    continue;
+
+                var initializers = new List<string>();
+                foreach (var member in SettableTargetMembers(targetType, configuration))
+                {
+                    if (consumed.Contains(member.Name) || configuration?.IgnoredTargets.Contains(member.Name) == true)
+                        continue;
+                    var value = BuildProjectionMemberValue(
+                        sourceType,
+                        targetType,
+                        sourceExpression,
+                        member.Name,
+                        member.Type,
+                        context,
+                        visiting,
+                        out failureMember
+                    );
+                    if (value == null)
+                    {
+                        if (configuration?.EnforceTarget == false && !member.IsRequired)
+                            continue;
+                        valid = false;
+                        break;
+                    }
+                    initializers.Add($"{Escape(member.Name)} = {value}");
+                }
+                if (!valid)
+                    continue;
+                var initializer = initializers.Count == 0 ? string.Empty : $" {{ {string.Join(", ", initializers)} }}";
+                return $"new {TypeName(targetType)}({string.Join(", ", arguments)}){initializer}";
+            }
+            return null;
+        }
+        finally
+        {
+            visiting.Remove(key);
+        }
+    }
+
+    private string? BuildProjectionMemberValue(
+        ITypeSymbol sourceType,
+        ITypeSymbol targetType,
+        string sourceExpression,
+        string targetMemberName,
+        ITypeSymbol targetMemberType,
+        MappingContext context,
+        ISet<string> visiting,
+        out string? failureMember
+    )
+    {
+        failureMember = targetMemberName;
+        var configuration = RootConfiguration(context, sourceType, targetType);
+        string sourceValue;
+        ITypeSymbol sourceValueType;
+        if (configuration?.Bindings.TryGetValue(targetMemberName, out var binding) == true)
+        {
+            sourceValueType = EffectivePathType(binding.SourceMembers);
+            sourceValue = BuildProjectionSourcePath(sourceExpression, binding.SourceMembers, sourceValueType);
+        }
+        else if (TryFindMember(ReadableMembers(sourceType), targetMemberName, out var sourceMember))
+        {
+            sourceValue = $"{sourceExpression}.{Escape(sourceMember.Name)}";
+            sourceValueType = sourceMember.Type;
+        }
+        else
+        {
+            return null;
+        }
+
+        if (configuration?.NullSubstitutes.TryGetValue(targetMemberName, out var substitute) == true && IsNullable(sourceValueType))
+        {
+            var mapped = BuildProjectionExpression(
+                NonNullableType(sourceValueType),
+                targetMemberType,
+                NonNullExpression(sourceValue, sourceValueType),
+                context,
+                visiting,
+                out failureMember
+            );
+            return mapped == null ? null : $"{sourceValue} == null ? {substitute} : {mapped}";
+        }
+        if (configuration?.NullBehaviors.TryGetValue(targetMemberName, out var behavior) == true && behavior != 0)
+            return null;
+        return BuildProjectionExpression(sourceValueType, targetMemberType, sourceValue, context, visiting, out failureMember);
+    }
+
+    private static string BuildProjectionSourcePath(string sourceExpression, ImmutableArray<MappingMember> path, ITypeSymbol effectiveType)
+    {
+        var expression = sourceExpression;
+        var nullablePrefixes = new List<string>();
+        ITypeSymbol? currentType = null;
+        foreach (var member in path)
+        {
+            if (currentType != null && IsNullable(currentType))
+            {
+                nullablePrefixes.Add(expression);
+                expression = NonNullExpression(expression, currentType);
+            }
+            expression += "." + Escape(member.Name);
+            currentType = member.Type;
+        }
+        foreach (var prefix in nullablePrefixes.AsEnumerable().Reverse())
+            expression = $"{prefix} == null ? default({TypeName(effectiveType)}) : {expression}";
+        return expression;
+    }
+
+    private static bool TryGetProjectionTypes(IMethodSymbol method, out ITypeSymbol sourceType, out ITypeSymbol targetType)
+    {
+        sourceType = null!;
+        targetType = null!;
+        if (
+            !method.IsStatic
+            || method.Parameters.Length != 0
+            || method.TypeParameters.Length != 0
+            || method.ReturnType is not INamedTypeSymbol expression
+        )
+            return false;
+        if (
+            !string.Equals(expression.OriginalDefinition.MetadataName, "Expression`1", StringComparison.Ordinal)
+            || !string.Equals(
+                expression.OriginalDefinition.ContainingNamespace.ToDisplayString(),
+                "System.Linq.Expressions",
+                StringComparison.Ordinal
+            )
+        )
+            return false;
+        if (
+            expression.TypeArguments[0] is not INamedTypeSymbol { DelegateInvokeMethod: { } invoke } delegateType
+            || !string.Equals(delegateType.OriginalDefinition.MetadataName, "Func`2", StringComparison.Ordinal)
+            || !string.Equals(delegateType.OriginalDefinition.ContainingNamespace.ToDisplayString(), "System", StringComparison.Ordinal)
+            || invoke.Parameters.Length != 1
+        )
+            return false;
+        sourceType = invoke.Parameters[0].Type;
+        targetType = invoke.ReturnType;
+        return true;
+    }
+
+    private void ReportInvalidProjection(IMethodSymbol method, string member, string operation, string action) =>
+        _diagnostics.Add(Diagnostic.Create(InvalidProjection, method.Locations.FirstOrDefault(), method.Name, member, operation, action));
 
     private ImmutableArray<IMethodSymbol> DiscoverMappingMethods() => _mappingMethods;
 
@@ -160,12 +689,27 @@ internal sealed class MapperCompiler
         var ignoredSources = ImmutableHashSet.CreateBuilder<string>(comparer);
         var nullBehaviors = ImmutableDictionary.CreateBuilder<string, int>(comparer);
         var nullSubstitutes = ImmutableDictionary.CreateBuilder<string, string>(comparer);
+        var collectionPolicies = ImmutableDictionary.CreateBuilder<string, int>(comparer);
         var computedMembers = ImmutableDictionary.CreateBuilder<string, IMethodSymbol>(comparer);
         var conditions = ImmutableDictionary.CreateBuilder<string, IMethodSymbol>(comparer);
         var completionHooks = ImmutableArray.CreateBuilder<IMethodSymbol>();
         var completionHookMethods = new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default);
         var sourceMembers = AllReadableMembers(sourceType);
         var targetMembers = GetAllMappingMembers(targetType).ToArray();
+        var preserveReferences = HasAttribute(method, MapReferenceTrackingAttribute);
+
+        if (preserveReferences && (isUpdate || !sourceType.IsReferenceType || !targetType.IsReferenceType))
+        {
+            _diagnostics.Add(
+                Diagnostic.Create(
+                    UnsupportedReferenceTracking,
+                    method.Locations.FirstOrDefault(),
+                    method.Name,
+                    "tracking requires a create mapping between reference types"
+                )
+            );
+            valid = false;
+        }
 
         var completeness = 0;
         var completenessAttribute = Attribute(method, MappingCompletenessAttribute);
@@ -202,6 +746,54 @@ internal sealed class MapperCompiler
                     ReportInvalidConfiguration(method, $"depth exhaustion behavior value '{depthExhaustionBehavior}' is not defined");
                     valid = false;
                 }
+            }
+        }
+
+        foreach (var attribute in Attributes(method, MapCollectionAttribute))
+        {
+            if (
+                !isUpdate
+                || !TryReadString(attribute, 0, out var targetName)
+                || attribute.ConstructorArguments.Length != 2
+                || attribute.ConstructorArguments[1].Value is not int policy
+                || policy is < 0 or > 2
+                || !TryFindMember(targetMembers, targetName, out var targetMember)
+                || !targetMember.CanRead
+            )
+            {
+                ReportInvalidConfiguration(
+                    method,
+                    "a collection policy requires an existing-target mapping and a readable target collection member"
+                );
+                valid = false;
+                continue;
+            }
+
+            if (!TryGetSequenceElement(targetMember.Type, out _) && !TryGetDictionaryTypes(targetMember.Type, out _, out _))
+            {
+                ReportInvalidConfiguration(method, $"collection policy target '{targetName}' is not a supported collection");
+                valid = false;
+                continue;
+            }
+            if (policy == 0 && (!targetMember.CanWrite || targetMember.IsInitOnly))
+            {
+                ReportInvalidConfiguration(method, $"Replace collection policy for '{targetName}' requires a writable target member");
+                valid = false;
+                continue;
+            }
+            if (policy is 1 or 2 && !CanMutateCollection(targetMember.Type))
+            {
+                ReportInvalidConfiguration(
+                    method,
+                    $"collection policy for '{targetName}' requires a mutable ICollection<T> or IDictionary<TKey, TValue> target"
+                );
+                valid = false;
+                continue;
+            }
+            if (!collectionPolicies.TryAdd(targetName, policy))
+            {
+                ReportInvalidConfiguration(method, $"target member '{targetName}' has more than one collection policy");
+                valid = false;
             }
         }
 
@@ -303,7 +895,13 @@ internal sealed class MapperCompiler
             }
             foreach (var memberName in ReadStringArray(onlyAttribute))
             {
-                if (!TryFindMember(targetMembers, memberName, out var member) || !member.CanWrite || member.IsInitOnly)
+                if (
+                    !TryFindMember(targetMembers, memberName, out var member)
+                    || (
+                        (!member.CanWrite || member.IsInitOnly)
+                        && (!collectionPolicies.TryGetValue(memberName, out var policy) || policy is not (1 or 2))
+                    )
+                )
                 {
                     ReportInvalidConfiguration(method, $"allow-listed target member '{memberName}' is missing, ambiguous, or not writable");
                     valid = false;
@@ -486,6 +1084,23 @@ internal sealed class MapperCompiler
             }
         }
 
+        foreach (var targetName in collectionPolicies.Keys)
+        {
+            if (ignoredTargets.Contains(targetName))
+            {
+                ReportInvalidConfiguration(method, $"collection policy for target member '{targetName}' cannot be combined with an ignore");
+                valid = false;
+            }
+            if (computedMembers.ContainsKey(targetName) || nullSubstitutes.ContainsKey(targetName))
+            {
+                ReportInvalidConfiguration(
+                    method,
+                    $"collection policy for target member '{targetName}' cannot be combined with a computed member or null substitute"
+                );
+                valid = false;
+            }
+        }
+
         foreach (var targetName in nullBehaviors.Keys.Concat(nullSubstitutes.Keys))
         {
             if (ignoredTargets.Contains(targetName) || computedMembers.ContainsKey(targetName))
@@ -544,7 +1159,9 @@ internal sealed class MapperCompiler
                 conditions.ToImmutable(),
                 completionHooks.ToImmutable(),
                 maximumDepth,
-                depthExhaustionBehavior
+                depthExhaustionBehavior,
+                collectionPolicies.ToImmutable(),
+                preserveReferences
             )
             : null;
     }
@@ -563,10 +1180,12 @@ internal sealed class MapperCompiler
                     or IgnoreTargetMemberAttribute
                     or IncludeMappingAttribute
                     or MapMemberAttribute
+                    or MapCollectionAttribute
                     or MapMaxDepthAttribute
                     or MapNullAttribute
                     or MapNullSubstituteAttribute
                     or MapOnlyTargetMembersAttribute
+                    or MapReferenceTrackingAttribute
                     or MappingCompletenessAttribute
             )
                 return true;
@@ -595,9 +1214,12 @@ internal sealed class MapperCompiler
             ImmutableDictionary<string, IMethodSymbol>.Empty,
             ImmutableArray<IMethodSymbol>.Empty,
             null,
-            0
+            0,
+            ImmutableDictionary<string, int>.Empty,
+            false
         );
 
+    [SuppressMessage("Maintainability", "MA0051", Justification = "Keeps root mapping mode selection and validation auditable.")]
     private void BuildRootContract(IMethodSymbol method)
     {
         if (method.ReturnsByRef || method.ReturnsByRefReadonly || method.Parameters.Any(x => x.RefKind == RefKind.Out))
@@ -623,10 +1245,49 @@ internal sealed class MapperCompiler
         var configuration = BuildConfiguration(method, sourceParameter.Type, method.ReturnType, false);
         if (configuration == null)
             return;
+        _configurations[method] = configuration;
         var ambientValues = method.Parameters.Skip(1).Select(x => new MappingValue(x.Name, x.Type, Escape(x.Name))).ToImmutableArray();
         var context = new MappingContext(method.TypeParameters, ambientValues, configuration);
         var factoryName = ReadFactoryName(method);
         IMethodSymbol? selectedFactory = null;
+
+        if (configuration.PreserveReferences)
+        {
+            if (
+                IsNullable(sourceParameter.Type)
+                || factoryName != null
+                || !CanTrackObject(sourceParameter.Type, method.ReturnType, context)
+            )
+            {
+                _diagnostics.Add(
+                    Diagnostic.Create(
+                        UnsupportedReferenceTracking,
+                        method.Locations.FirstOrDefault(),
+                        method.Name,
+                        "tracking requires a non-null source and a target that can be allocated before its mapped members"
+                    )
+                );
+                return;
+            }
+
+            var trackedExpression = QueueObjectHelper(sourceParameter.Type, method.ReturnType, sourceExpression, context);
+            if (trackedExpression == null)
+                return;
+            if (!ValidateSourceCompleteness(configuration, null, null))
+                return;
+            var trackedHooks = BuildCompletionHooks(configuration, sourceExpression, "target", context);
+            if (trackedHooks == null)
+                return;
+            var referenceKeyName = EnsureReferenceKey();
+            var trackedBody =
+                $"var __references = new global::System.Collections.Generic.Dictionary<{referenceKeyName}, object>();\n"
+                + $"var target = {trackedExpression};\n"
+                + trackedHooks
+                + "return target;";
+            _rootContracts.Add(new MappingContract(method.Name, BuildDeclaration(method), trackedBody, MappingShape.Create));
+            _successfulMappingMethods.Add(method);
+            return;
+        }
 
         var expression =
             factoryName == null
@@ -661,6 +1322,7 @@ internal sealed class MapperCompiler
             guardedHooks = $"if ({sourceExpression} is not null && target is not null)\n{{\n{Indent(hooks.TrimEnd())}\n}}\n";
         var body = $"var target = {expression};\n{guardedHooks}return target;";
         _rootContracts.Add(new MappingContract(method.Name, BuildDeclaration(method), body, MappingShape.Create));
+        _successfulMappingMethods.Add(method);
     }
 
     private string? BuildRootExpression(ITypeSymbol sourceType, ITypeSymbol targetType, string sourceExpression, MappingContext context)
@@ -907,9 +1569,11 @@ internal sealed class MapperCompiler
         string sourceExpression,
         string? targetExpression,
         string targetMemberName,
-        MappingContext context
+        MappingContext context,
+        out bool valid
     )
     {
+        valid = true;
         var configuration = RootConfiguration(context, sourceType, targetType);
         if (configuration?.Conditions.TryGetValue(targetMemberName, out var condition) != true)
             return null;
@@ -939,10 +1603,13 @@ internal sealed class MapperCompiler
             context
         );
         if (call == null)
+        {
+            valid = false;
             ReportInvalidConfiguration(
                 configuration!.Method,
                 $"condition method '{condition!.Name}' has an unsupported parameter contract"
             );
+        }
         return call;
     }
 
@@ -988,6 +1655,7 @@ internal sealed class MapperCompiler
         var configuration = BuildConfiguration(method, source.Type, target.Type, true);
         if (configuration == null)
             return;
+        _configurations[method] = configuration;
         var context = new MappingContext(method.TypeParameters, ImmutableArray<MappingValue>.Empty, configuration);
         if (
             !TryBuildAssignments(
@@ -1025,9 +1693,17 @@ internal sealed class MapperCompiler
 
     private void BuildHelperContract(MappingRequest request)
     {
+        if (request.Context.Configuration?.PreserveReferences == true)
+        {
+            BuildTrackedObjectHelper(request);
+            return;
+        }
+
         var expression = BuildObjectCreation(request.SourceType, request.TargetType, "source", request.Context);
         if (expression == null)
         {
+            if (request.Context.Configuration != null)
+                _successfulMappingMethods.Remove(request.Context.Configuration.Method);
             _diagnostics.Add(
                 Diagnostic.Create(
                     CannotConstruct,
@@ -1049,6 +1725,90 @@ internal sealed class MapperCompiler
                 MappingShape.Helper
             )
         );
+    }
+
+    private void BuildTrackedObjectHelper(MappingRequest request)
+    {
+        if (!CanTrackObject(request.SourceType, request.TargetType, request.Context))
+        {
+            _successfulMappingMethods.Remove(request.Context.Configuration!.Method);
+            _diagnostics.Add(
+                Diagnostic.Create(
+                    UnsupportedReferenceTracking,
+                    _mapperType.Locations.FirstOrDefault(),
+                    request.Context.Configuration!.Method.Name,
+                    $"target '{request.TargetType.ToDisplayString()}' cannot be allocated before its mapped members"
+                )
+            );
+            AddUnsupportedTrackedHelper(request);
+            return;
+        }
+
+        if (
+            !TryBuildAssignments(
+                request.SourceType,
+                request.TargetType,
+                "source",
+                "target",
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                false,
+                request.Context,
+                out var assignments
+            )
+        )
+        {
+            _successfulMappingMethods.Remove(request.Context.Configuration!.Method);
+            _diagnostics.Add(
+                Diagnostic.Create(
+                    UnsupportedReferenceTracking,
+                    _mapperType.Locations.FirstOrDefault(),
+                    request.Context.Configuration!.Method.Name,
+                    $"target '{request.TargetType.ToDisplayString()}' cannot be fully assigned after its tracked instance is allocated"
+                )
+            );
+            AddUnsupportedTrackedHelper(request);
+            return;
+        }
+
+        var declaration = BuildHelperDeclaration(request.TargetType, request.MethodName, request.SourceType, request.Context);
+        var depthGuard = BuildDepthGuard(request.TargetType, request.Context);
+        var referenceKeyName = EnsureReferenceKey();
+        var body =
+            $"var __referenceKey = new {referenceKeyName}(source, typeof({RuntimeTypeName(request.TargetType)}));\n"
+            + $"if (__references.TryGetValue(__referenceKey, out var __existing))\n{{\n    return ({TypeName(request.TargetType)})__existing;\n}}\n"
+            + depthGuard
+            + $"var target = new {TypeName(request.TargetType)}();\n"
+            + "__references.Add(__referenceKey, target);\n"
+            + assignments
+            + (assignments.Length == 0 ? string.Empty : "\n")
+            + "return target;";
+        _helperContracts.Add(new MappingContract(request.MethodName, declaration, body, MappingShape.Helper));
+    }
+
+    private void AddUnsupportedTrackedHelper(MappingRequest request) =>
+        _helperContracts.Add(
+            new MappingContract(
+                request.MethodName,
+                BuildHelperDeclaration(request.TargetType, request.MethodName, request.SourceType, request.Context),
+                "throw new global::System.InvalidOperationException(\"Unsupported DomainMapper reference-tracking contract.\");",
+                MappingShape.Helper
+            )
+        );
+
+    private bool CanTrackObject(ITypeSymbol sourceType, ITypeSymbol targetType, MappingContext context)
+    {
+        if (
+            !sourceType.IsReferenceType
+            || targetType is not INamedTypeSymbol namedTarget
+            || !targetType.IsReferenceType
+            || namedTarget.IsAbstract
+        )
+            return false;
+        if (!namedTarget.InstanceConstructors.Any(x => x.Parameters.Length == 0 && IsAccessible(x)))
+            return false;
+        if (RequiredFields(targetType).Count > 0 || SettableTargetMembers(targetType, context.Configuration).Any(x => x.IsInitOnly))
+            return false;
+        return true;
     }
 
     private static string BuildDepthGuard(ITypeSymbol targetType, MappingContext context)
@@ -1223,6 +1983,11 @@ internal sealed class MapperCompiler
         return assignments.Length == 0 ? creation : new DeferredObjectCreation(creation, assignments).ToMarker();
     }
 
+    [SuppressMessage(
+        "Maintainability",
+        "MA0051",
+        Justification = "Keeps member assignment and explicit mutation planning in one ordered flow."
+    )]
     private bool TryBuildAssignments(
         ITypeSymbol sourceType,
         ITypeSymbol targetType,
@@ -1247,6 +2012,7 @@ internal sealed class MapperCompiler
                 !consumedMembers.Contains(targetMember.Name)
                 && HasConfiguredOrConventionValue(configuration, sourceMembers, targetMember.Name)
                 && !writableMembers.Any(x => SymbolEqualityComparer.Default.Equals(x.Symbol, targetMember.Symbol))
+                && CollectionPolicy(configuration, targetMember.Name) is not (1 or 2)
             )
             {
                 assignments = string.Empty;
@@ -1255,7 +2021,11 @@ internal sealed class MapperCompiler
         }
 
         var lines = new List<string>();
-        foreach (var targetMember in writableMembers)
+        var assignmentMembers = writableMembers
+            .Concat(ReadableTargetMembers(targetType, configuration).Where(x => CollectionPolicy(configuration, x.Name) is 1 or 2))
+            .GroupBy(x => x.Symbol, SymbolEqualityComparer.Default)
+            .Select(x => x.First());
+        foreach (var targetMember in assignmentMembers)
         {
             if (consumedMembers.Contains(targetMember.Name))
                 continue;
@@ -1263,6 +2033,27 @@ internal sealed class MapperCompiler
                 continue;
             if (configuration?.OnlyTargets != null && !configuration.OnlyTargets.Contains(targetMember.Name))
                 continue;
+
+            if (CollectionPolicy(configuration, targetMember.Name) is 1 or 2)
+            {
+                if (
+                    !TryBuildCollectionMutation(
+                        sourceType,
+                        targetType,
+                        sourceExpression,
+                        targetExpression,
+                        targetMember,
+                        context,
+                        out var mutation
+                    )
+                )
+                {
+                    assignments = string.Empty;
+                    return false;
+                }
+                lines.Add(mutation);
+                continue;
+            }
 
             if (
                 !TryBuildMemberValue(
@@ -1291,8 +2082,14 @@ internal sealed class MapperCompiler
                 sourceExpression,
                 targetExpression,
                 targetMember.Name,
-                context
+                context,
+                out var conditionValid
             );
+            if (!conditionValid)
+            {
+                assignments = string.Empty;
+                return false;
+            }
             if (configuration?.NullBehaviors.TryGetValue(targetMember.Name, out var behavior) == true && behavior == 1)
                 condition =
                     condition == null
@@ -1304,6 +2101,141 @@ internal sealed class MapperCompiler
         assignments = string.Join("\n", lines);
         return !requireAssignment || lines.Count > 0;
     }
+
+    [SuppressMessage("Maintainability", "MA0051", Justification = "Keeps collection null, shape, and mutation policy validation together.")]
+    private bool TryBuildCollectionMutation(
+        ITypeSymbol sourceType,
+        ITypeSymbol targetType,
+        string sourceExpression,
+        string targetExpression,
+        MappingMember targetMember,
+        MappingContext context,
+        out string mutation
+    )
+    {
+        mutation = string.Empty;
+        var configuration = context.Configuration!;
+        string sourceValue;
+        ITypeSymbol sourceValueType;
+        if (configuration.Bindings.TryGetValue(targetMember.Name, out var binding))
+        {
+            sourceValue = BuildSourcePathExpression(sourceExpression, binding.SourceMembers);
+            sourceValueType = EffectivePathType(binding.SourceMembers);
+        }
+        else if (TryFindMember(ReadableMembers(sourceType), targetMember.Name, out var sourceMember))
+        {
+            sourceValue = $"{sourceExpression}.{Escape(sourceMember.Name)}";
+            sourceValueType = sourceMember.Type;
+        }
+        else
+        {
+            ReportInvalidConfiguration(
+                configuration.Method,
+                $"collection policy target '{targetMember.Name}' has no configured source collection"
+            );
+            return false;
+        }
+
+        var nonNullableSource = NonNullableType(sourceValueType);
+        var targetAccess = $"{targetExpression}.{Escape(targetMember.Name)}";
+        var collectionVariable = "__collection_" + Sanitize(targetMember.Name);
+        var lines = new List<string>();
+        var policy = configuration.CollectionPolicies[targetMember.Name];
+        var behavior = configuration.NullBehaviors.TryGetValue(targetMember.Name, out var configuredBehavior) ? configuredBehavior : 0;
+        var nullable = IsNullable(sourceValueType);
+        var sourceCollectionVariable = "__sourceCollection_" + Sanitize(targetMember.Name);
+        var collectionSource = nullable ? sourceCollectionVariable : sourceValue;
+
+        if (
+            TryGetDictionaryTypes(nonNullableSource, out var sourceKey, out var sourceValueTypeArgument)
+            && TryGetDictionaryTypes(targetMember.Type, out var targetKey, out var targetValue)
+        )
+        {
+            var contract = FindGenericContract(targetMember.Type, "System.Collections.Generic.IDictionary<TKey, TValue>");
+            if (contract == null)
+                return false;
+            var helperContext = context.ForHelper();
+            var key = ConvertExpression(sourceKey, targetKey, "item.Key", helperContext);
+            var value = ConvertExpression(sourceValueTypeArgument, targetValue, "item.Value", helperContext);
+            if (key == null || value == null)
+                return false;
+            lines.Add(
+                $"var {collectionVariable} = ({TypeName(contract)})({targetAccess} ?? throw new global::System.InvalidOperationException(\"Target collection '{Escape(targetMember.Name)}' cannot be null.\"));"
+            );
+            if (policy == 1)
+                lines.Add($"{collectionVariable}.Clear();");
+            lines.Add($"foreach (var item in {collectionSource})\n{{\n    {collectionVariable}.Add({key}, {value});\n}}");
+        }
+        else if (
+            TryGetSequenceElement(nonNullableSource, out var sourceElement)
+            && TryGetSequenceElement(targetMember.Type, out var targetElement)
+        )
+        {
+            var contract = FindGenericContract(targetMember.Type, "System.Collections.Generic.ICollection<T>");
+            if (contract == null)
+                return false;
+            var value = ConvertExpression(sourceElement, targetElement, "item", context.ForHelper());
+            if (value == null)
+                return false;
+            lines.Add(
+                $"var {collectionVariable} = ({TypeName(contract)})({targetAccess} ?? throw new global::System.InvalidOperationException(\"Target collection '{Escape(targetMember.Name)}' cannot be null.\"));"
+            );
+            if (policy == 1)
+                lines.Add($"{collectionVariable}.Clear();");
+            lines.Add($"foreach (var item in {collectionSource})\n{{\n    {collectionVariable}.Add({value});\n}}");
+        }
+        else
+        {
+            ReportInvalidConfiguration(
+                configuration.Method,
+                $"collection policy target '{targetMember.Name}' has incompatible source and target collection shapes"
+            );
+            return false;
+        }
+
+        var body = string.Join("\n", lines);
+        if (nullable)
+        {
+            if (behavior == 2)
+            {
+                body =
+                    $"if ({collectionSource} is null)\n{{\n    throw new global::System.InvalidOperationException(\"Source collection for '{Escape(targetMember.Name)}' cannot be null.\");\n}}\n{body}";
+            }
+            else if (behavior == 1 || policy != 1)
+            {
+                body = $"if ({collectionSource} is not null)\n{{\n{Indent(body)}\n}}";
+            }
+            else
+            {
+                var collectionContract = FindGenericContract(
+                    targetMember.Type,
+                    "System.Collections.Generic.ICollection<T>",
+                    "System.Collections.Generic.IDictionary<TKey, TValue>"
+                )!;
+                var clear =
+                    $"(({TypeName(collectionContract)})({targetAccess} ?? throw new global::System.InvalidOperationException(\"Target collection '{Escape(targetMember.Name)}' cannot be null.\"))).Clear();";
+                body = $"if ({collectionSource} is null)\n{{\n    {clear}\n}}\nelse\n{{\n{Indent(string.Join("\n", lines))}\n}}";
+            }
+            body = $"var {sourceCollectionVariable} = {sourceValue};\n{body}";
+        }
+
+        var condition = BuildConditionExpression(
+            sourceType,
+            targetType,
+            sourceExpression,
+            targetExpression,
+            targetMember.Name,
+            context,
+            out var conditionValid
+        );
+        if (!conditionValid)
+            return false;
+        mutation = condition == null ? body : $"if ({condition})\n{{\n{Indent(body)}\n}}";
+        return true;
+    }
+
+    private static int? CollectionPolicy(MappingMethodConfiguration? configuration, string targetMemberName) =>
+        configuration?.CollectionPolicies.TryGetValue(targetMemberName, out var policy) == true ? policy : null;
 
     [SuppressMessage("Maintainability", "MA0051", Justification = "Keeps fail-closed construction planning in one flow.")]
     private bool TryBuildCreationPlan(
@@ -1386,7 +2318,21 @@ internal sealed class MapperCompiler
                 return false;
             }
 
-            var condition = BuildConditionExpression(sourceType, targetType, sourceExpression, "target", targetMember.Name, context);
+            var condition = BuildConditionExpression(
+                sourceType,
+                targetType,
+                sourceExpression,
+                "target",
+                targetMember.Name,
+                context,
+                out var conditionValid
+            );
+            if (!conditionValid)
+            {
+                initializer = string.Empty;
+                assignments = string.Empty;
+                return false;
+            }
             if (requiresInitializer && condition != null)
             {
                 initializer = string.Empty;
@@ -1492,6 +2438,11 @@ internal sealed class MapperCompiler
         return null;
     }
 
+    [SuppressMessage(
+        "Maintainability",
+        "MA0051",
+        Justification = "Keeps sequence target allocation and reference registration ordering together."
+    )]
     private string? BuildSequenceConversion(
         ITypeSymbol sourceType,
         ITypeSymbol targetType,
@@ -1513,11 +2464,20 @@ internal sealed class MapperCompiler
         var creation = targetType is IArrayTypeSymbol ? null : BuildSequenceCreation(targetType, targetElement, count);
         if (targetType is not IArrayTypeSymbol && creation == null)
             return null;
+        if (targetType is IArrayTypeSymbol && count == null && context.Configuration?.PreserveReferences == true)
+            return null;
 
         var key = BuildHelperKey(sourceType, targetType, context);
         var isNew = ReserveHelper(key, $"MapTo{SequenceName(targetType, targetElement)}", out var helperName);
         if (isNew)
         {
+            var referenceKeyName = helperContext.Configuration?.PreserveReferences == true ? EnsureReferenceKey() : null;
+            var trackLookup =
+                helperContext.Configuration?.PreserveReferences == true
+                    ? $"var __referenceKey = new {referenceKeyName}(source, typeof({RuntimeTypeName(targetType)}));\nif (__references.TryGetValue(__referenceKey, out var __existing))\n{{\n    return ({TypeName(targetType)})__existing;\n}}\n{BuildDepthGuard(targetType, helperContext)}"
+                    : string.Empty;
+            var trackTarget =
+                helperContext.Configuration?.PreserveReferences == true ? "__references.Add(__referenceKey, target);\n" : string.Empty;
             if (targetType is IArrayTypeSymbol)
             {
                 string body;
@@ -1531,14 +2491,18 @@ internal sealed class MapperCompiler
                 else if (IndexExpression(sourceType, "source", "i") is { } indexedItem)
                 {
                     body =
-                        $"var target = new {TypeName(targetElement)}[{count}];\n"
+                        trackLookup
+                        + $"var target = new {TypeName(targetElement)}[{count}];\n"
+                        + trackTarget
                         + $"for (var i = 0; i < {count}; i++)\n{{\n    var item = {indexedItem};\n    target[i] = {elementExpression};\n}}\n"
                         + "return target;";
                 }
                 else
                 {
                     body =
-                        $"var target = new {TypeName(targetElement)}[{count}];\n"
+                        trackLookup
+                        + $"var target = new {TypeName(targetElement)}[{count}];\n"
+                        + trackTarget
                         + $"var index = 0;\nforeach (var item in {EnumerableExpression(sourceType, sourceElement, "source")})\n{{\n    target[index++] = {elementExpression};\n}}\n"
                         + "return target;";
                 }
@@ -1559,7 +2523,12 @@ internal sealed class MapperCompiler
                 : $"foreach (var item in {EnumerableExpression(sourceType, sourceElement, "source")})\n{{\n    target.Add({elementExpression});\n}}";
             var declaration = BuildHelperDeclaration(targetType, helperName, sourceType, helperContext);
             _helperContracts.Add(
-                new MappingContract(helperName, declaration, $"var target = {creation};\n{iteration}\nreturn target;", MappingShape.Helper)
+                new MappingContract(
+                    helperName,
+                    declaration,
+                    $"{trackLookup}var target = {creation};\n{trackTarget}{iteration}\nreturn target;",
+                    MappingShape.Helper
+                )
             );
         }
 
@@ -1592,8 +2561,17 @@ internal sealed class MapperCompiler
         if (isNew)
         {
             var declaration = BuildHelperDeclaration(targetType, helperName, sourceType, helperContext);
+            var referenceKeyName = helperContext.Configuration?.PreserveReferences == true ? EnsureReferenceKey() : null;
+            var trackLookup =
+                helperContext.Configuration?.PreserveReferences == true
+                    ? $"var __referenceKey = new {referenceKeyName}(source, typeof({RuntimeTypeName(targetType)}));\nif (__references.TryGetValue(__referenceKey, out var __existing))\n{{\n    return ({TypeName(targetType)})__existing;\n}}\n{BuildDepthGuard(targetType, helperContext)}"
+                    : string.Empty;
+            var trackTarget =
+                helperContext.Configuration?.PreserveReferences == true ? "__references.Add(__referenceKey, target);\n" : string.Empty;
             var body =
-                $"var target = new {creationType}({DictionaryCountExpression(sourceType, "source")});\n"
+                trackLookup
+                + $"var target = new {creationType}({DictionaryCountExpression(sourceType, "source")});\n"
+                + trackTarget
                 + $"foreach (var item in {DictionaryExpression(sourceType, sourceKey, sourceValue, "source")})\n{{\n    target[{keyExpression}] = {valueExpression};\n}}\nreturn target;";
             _helperContracts.Add(new MappingContract(helperName, declaration, body, MappingShape.Helper));
         }
@@ -1624,8 +2602,10 @@ internal sealed class MapperCompiler
             || configuration.OnlyTargets != null
             || configuration.NullBehaviors.Count > 0
             || configuration.NullSubstitutes.Count > 0
+            || configuration.CollectionPolicies.Count > 0
             || configuration.ComputedMembers.Count > 0
             || configuration.Conditions.Count > 0
+            || configuration.PreserveReferences
             || !configuration.EnforceTarget
         );
 
@@ -1716,7 +2696,7 @@ internal sealed class MapperCompiler
     {
         var key = BuildHelperKey(sourceType, targetType, context);
         if (!visiting.Add(key))
-            return context.Configuration?.MaximumDepth != null;
+            return context.Configuration?.MaximumDepth != null || context.Configuration?.PreserveReferences == true;
 
         try
         {
@@ -1892,6 +2872,16 @@ internal sealed class MapperCompiler
         {
             EmitContract(writer, contracts[index]);
             if (index < contracts.Length - 1)
+                writer.Line();
+        }
+
+        if (contracts.Length > 0 && _supportMembers.Count > 0)
+            writer.Line();
+        for (var index = 0; index < _supportMembers.Count; index++)
+        {
+            foreach (var line in _supportMembers[index].Split('\n'))
+                writer.Line(line);
+            if (index < _supportMembers.Count - 1)
                 writer.Line();
         }
 
@@ -2667,6 +3657,7 @@ internal sealed class MapperCompiler
             || configuration.Conditions.ContainsKey(memberName)
             || configuration.NullBehaviors.ContainsKey(memberName)
             || configuration.NullSubstitutes.ContainsKey(memberName)
+            || configuration.CollectionPolicies.ContainsKey(memberName)
             || configuration.OnlyTargets?.Contains(memberName) == true
         );
 
@@ -2889,6 +3880,22 @@ internal sealed class MapperCompiler
             || string.Equals(definition, "System.Collections.Generic.Dictionary<TKey, TValue>", StringComparison.Ordinal);
     }
 
+    private static bool CanMutateCollection(ITypeSymbol type)
+    {
+        if (type is not INamedTypeSymbol named)
+            return false;
+        return named
+            .AllInterfaces.Append(named)
+            .Any(x =>
+                string.Equals(x.OriginalDefinition.ToDisplayString(), "System.Collections.Generic.ICollection<T>", StringComparison.Ordinal)
+                || string.Equals(
+                    x.OriginalDefinition.ToDisplayString(),
+                    "System.Collections.Generic.IDictionary<TKey, TValue>",
+                    StringComparison.Ordinal
+                )
+            );
+    }
+
     private static INamedTypeSymbol? FindGenericContract(ITypeSymbol type, params string[] definitions)
     {
         if (type is not INamedTypeSymbol named)
@@ -3023,6 +4030,39 @@ internal sealed class MapperCompiler
         return true;
     }
 
+    private string ReserveMemberName(string baseName)
+    {
+        var memberName = baseName;
+        var suffix = 2;
+        while (!_usedHelperNames.Add(memberName))
+        {
+            memberName = $"{baseName}{suffix}";
+            suffix++;
+        }
+        return memberName;
+    }
+
+    private string EnsureReferenceKey()
+    {
+        if (_referenceKeyName != null)
+            return _referenceKeyName;
+
+        _referenceKeyName = ReserveMemberName("__DomainMapperReferenceKey");
+
+        _supportMembers.Add(
+            $"private readonly struct {_referenceKeyName} : global::System.IEquatable<{_referenceKeyName}>\n"
+                + "{\n"
+                + "    private readonly object _source;\n"
+                + "    private readonly global::System.Type _targetType;\n"
+                + $"    internal {_referenceKeyName}(object source, global::System.Type targetType) {{ _source = source; _targetType = targetType; }}\n"
+                + $"    public bool Equals({_referenceKeyName} other) => global::System.Object.ReferenceEquals(_source, other._source) && _targetType == other._targetType;\n"
+                + $"    public override bool Equals(object? value) => value is {_referenceKeyName} other && Equals(other);\n"
+                + "    public override int GetHashCode() { unchecked { return (global::System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(_source) * 397) ^ _targetType.GetHashCode(); } }\n"
+                + "}"
+        );
+        return _referenceKeyName;
+    }
+
     private static IEnumerable<IMethodSymbol> GetAllMethods(INamedTypeSymbol type, string name)
     {
         for (var current = type; current != null; current = current.BaseType)
@@ -3045,13 +4085,16 @@ internal sealed class MapperCompiler
                 ? "convention"
                 : $"{context.Configuration.Method.ToDisplayString()}@{context.Configuration.Method.Locations.FirstOrDefault()?.SourceSpan.Start ?? -1}"
                     + $"|depth-behavior:{context.Configuration.DepthExhaustionBehavior}";
-        return $"{TypeName(sourceType)}->{TypeName(targetType)}|<{typeParameters}>{constraints}|{ambientValues}|depth:{depth}|{configurationIdentity}";
+        var references = context.Configuration?.PreserveReferences == true ? "tracked" : "untracked";
+        return $"{TypeName(sourceType)}->{TypeName(targetType)}|<{typeParameters}>{constraints}|{ambientValues}|depth:{depth}|references:{references}|{configurationIdentity}";
     }
 
-    private static string BuildHelperDeclaration(ITypeSymbol targetType, string helperName, ITypeSymbol sourceType, MappingContext context)
+    private string BuildHelperDeclaration(ITypeSymbol targetType, string helperName, ITypeSymbol sourceType, MappingContext context)
     {
         var parameters = new List<string> { $"{TypeName(sourceType)} source" };
         parameters.AddRange(context.AmbientValues.Select((value, index) => $"{TypeName(value.Type)} __ambient{index}"));
+        if (context.Configuration?.PreserveReferences == true)
+            parameters.Add($"global::System.Collections.Generic.Dictionary<{EnsureReferenceKey()}, object> __references");
         if (context.Configuration?.MaximumDepth != null)
             parameters.Add("int __depth");
         return $"private static {TypeName(targetType)} {Escape(helperName)}{TypeParameters(context.MethodTypeParameters)}({string.Join(", ", parameters)}){ConstraintClauses(context.MethodTypeParameters)}";
@@ -3064,11 +4107,15 @@ internal sealed class MapperCompiler
                 ? string.Empty
                 : $"<{string.Join(", ", context.MethodTypeParameters.Select(x => Escape(x.Name)))}>";
         var arguments = new[] { sourceExpression }.Concat(context.AmbientValues.Select(x => x.Expression));
+        if (context.Configuration?.PreserveReferences == true)
+            arguments = arguments.Append("__references");
         if (context.Configuration?.MaximumDepth != null)
         {
             var depth = context.IsHelper
                 ? "__depth - 1"
-                : (context.Configuration.MaximumDepth.Value - 1).ToString(CultureInfo.InvariantCulture);
+                : (context.Configuration.MaximumDepth.Value - (context.Configuration.PreserveReferences ? 0 : 1)).ToString(
+                    CultureInfo.InvariantCulture
+                );
             arguments = arguments.Append(depth);
         }
         return $"{Escape(helperName)}{typeArguments}({string.Join(", ", arguments)})";
@@ -3095,7 +4142,56 @@ internal sealed class MapperCompiler
 
     private static bool TypesEqual(ITypeSymbol left, ITypeSymbol right) => SymbolEqualityComparer.IncludeNullability.Equals(left, right);
 
+    private bool HasVisibleMapperMember(string name)
+    {
+        for (var current = _mapperType; current != null; current = current.BaseType)
+        {
+            if (
+                current
+                    .GetMembers(name)
+                    .Any(x =>
+                        SymbolEqualityComparer.Default.Equals(current, _mapperType) || x.DeclaredAccessibility != Accessibility.Private
+                    )
+            )
+                return true;
+        }
+        return false;
+    }
+
+    private bool RuntimeSourceTypesMayOverlap(ITypeSymbol first, ITypeSymbol second)
+    {
+        if (_compilation.ClassifyConversion(first, second).IsImplicit || _compilation.ClassifyConversion(second, first).IsImplicit)
+            return true;
+
+        if (!first.IsReferenceType || !second.IsReferenceType)
+            return false;
+        if (first.TypeKind == TypeKind.Class && second.TypeKind == TypeKind.Class)
+            return false;
+        if (first is INamedTypeSymbol { IsSealed: true } || second is INamedTypeSymbol { IsSealed: true })
+            return false;
+
+        // Unrelated interfaces, or an open class/interface pair, can still be
+        // implemented by the same runtime type even without a conversion
+        // between the declared source types.
+        return true;
+    }
+
     private static string TypeName(ITypeSymbol type) => type.ToDisplayString(TypeDisplayFormat);
+
+    private static string RuntimeTypeName(ITypeSymbol type) => TypeName(type.WithNullableAnnotation(NullableAnnotation.NotAnnotated));
+
+    private static bool RuntimeTypesEqual(ITypeSymbol first, ITypeSymbol second) =>
+        SymbolEqualityComparer.Default.Equals(
+            first.WithNullableAnnotation(NullableAnnotation.NotAnnotated),
+            second.WithNullableAnnotation(NullableAnnotation.NotAnnotated)
+        );
+
+    private static string RuntimeSourceTypeName(ITypeSymbol type) =>
+        RuntimeTypeName(
+            type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable
+                ? nullable.TypeArguments[0]
+                : type
+        );
 
     private static string AccessibilityText(Accessibility accessibility) =>
         accessibility switch

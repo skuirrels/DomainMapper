@@ -20,7 +20,9 @@ internal sealed class MappingMethodConfiguration
         ImmutableDictionary<string, IMethodSymbol> conditions,
         ImmutableArray<IMethodSymbol> completionHooks,
         int? maximumDepth,
-        int depthExhaustionBehavior
+        int depthExhaustionBehavior,
+        ImmutableDictionary<string, int> collectionPolicies,
+        bool preserveReferences
     )
     {
         Method = method;
@@ -38,6 +40,8 @@ internal sealed class MappingMethodConfiguration
         CompletionHooks = completionHooks;
         MaximumDepth = maximumDepth;
         DepthExhaustionBehavior = depthExhaustionBehavior;
+        CollectionPolicies = collectionPolicies;
+        PreserveReferences = preserveReferences;
     }
 
     public IMethodSymbol Method { get; }
@@ -69,6 +73,10 @@ internal sealed class MappingMethodConfiguration
     public int? MaximumDepth { get; }
 
     public int DepthExhaustionBehavior { get; }
+
+    public ImmutableDictionary<string, int> CollectionPolicies { get; }
+
+    public bool PreserveReferences { get; }
 
     public bool EnforceTarget => Completeness is 0 or 2;
 

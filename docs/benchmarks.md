@@ -15,6 +15,29 @@ DomainMapper compares generated runtime mappings and cold source generation with
 
 `SourceGeneratorBenchmarks` runs each incremental generator over the same in-memory Roslyn compilation. The fixture covers mutable and immutable objects, nullable properties, nested records, arrays, lists, read-only collections, dictionaries, generics, and existing-target updates. Setup verifies that generated output compiles before measurement.
 
+`IncrementalGeneratorBenchmarks` adds 1-, 16-, and 64-mapper synthetic consumers. It measures cold core generation, a no-op rerun, an isolated contract edit, a shared-contract edit, and cold registry and projection generation independently. Each fixture verifies both generated output count and compilation before measurement.
+
+`AdvancedFeatureBenchmarks` compares optional collection mutation, reference tracking, registry dispatch, and cached projection retrieval with equivalent hand-written C#. These scenarios are reported separately so optional behavior cannot hide a core-path regression.
+
+## Advanced feature development check — 15 August 2026
+
+This ShortRun used three measured iterations after three warmups on .NET SDK 10.0.400, .NET 10.0.11, macOS 26.5.2, and an Arm64 Apple M4 Pro. It is a development check, not release-grade evidence; overlapping confidence intervals are reported as no meaningful winner.
+
+| Scenario                    |                 Hand-written median |                 DomainMapper median | Hand-written allocation | DomainMapper allocation | Winner               |
+| --------------------------- | ----------------------------------: | ----------------------------------: | ----------------------: | ----------------------: | -------------------- |
+| Collection clear/fill       |                           29.836 ns |                            7.489 ns |                     0 B |                     0 B | DomainMapper         |
+| Reference tracking          |                           26.475 ns |                           26.044 ns |                   272 B |                   272 B | No meaningful winner |
+| Registry dispatch           |                            3.808 ns |                            4.324 ns |                    64 B |                    64 B | No meaningful winner |
+| Cached projection retrieval | indistinguishable from empty method | indistinguishable from empty method |                     0 B |                     0 B | Tie                  |
+
+The generated registry result includes the nullable-aware `MapRuntime` wrapper over `TryMapRuntime`; its observed absolute overhead versus the one-pair hand-written switch was approximately `0.52 ns` with equal allocation. The matched reference-tracking baseline keys both source identity and target contract, as the generated implementation does. Repeat on dedicated hardware before treating any timing difference as a stable product claim.
+
+The strengthened incremental cache key was also rechecked after adding compiler-option, preprocessor-symbol, referenced-contract, containing-type, and base-mapper invalidation. The same ShortRun environment measured a `256.482 us` median and `501.2 KB` allocation. Against the prior `212.300 us` development baseline, the time ratio is `1.208x`, within the predefined `1.25x` regression ceiling.
+
+| Measurement            | 1.1 development baseline | 1.2 hardened cache key | Gate             | Winner       |
+| ---------------------- | -----------------------: | ---------------------: | ---------------- | ------------ |
+| Median cold generation |               212.300 us |             256.482 us | Pass at `1.208x` | 1.1 baseline |
+
 BenchmarkDotNet runs each implementation in a separate process and alternates execution order. The gate aggregates raw iteration samples by median, checks a one-sided confidence bound, and permits no additional managed allocation.
 
 ## Rewrite verification — 12 August 2026
@@ -70,6 +93,20 @@ DOMAINMAPPER_BENCHMARK_PAIRS=1 \
 DOMAINMAPPER_SOURCE_BENCHMARK_PAIRS=2 \
 DOMAINMAPPER_BENCHMARK_JOB=Short \
 ./scripts/run-stable-benchmarks.sh
+```
+
+Run the optional-feature comparison independently with:
+
+```bash
+dotnet run -c Release --project benchmarks/DomainMapper.Benchmarks -- \
+  --filter '*AdvancedFeatureBenchmarks*' --job Short --join
+```
+
+Run the build-time matrix independently with:
+
+```bash
+dotnet run -c Release --project benchmarks/DomainMapper.Benchmarks -- \
+  --filter '*IncrementalGeneratorBenchmarks*' --job Short --join
 ```
 
 Use the default six runtime pairs on dedicated, idle hardware before making a release-level performance claim.

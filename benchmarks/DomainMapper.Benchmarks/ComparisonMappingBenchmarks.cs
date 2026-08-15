@@ -1,6 +1,8 @@
+using System.Linq.Expressions;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using DomainMapper.Abstractions;
+using DomainMapper.Projections;
 using MapperlyFactory = Riok.Mapperly.Abstractions.ObjectFactoryAttribute;
 using MapperlyMapper = Riok.Mapperly.Abstractions.MapperAttribute;
 using MapperlyMapProperty = Riok.Mapperly.Abstractions.MapPropertyAttribute;
@@ -90,6 +92,7 @@ public class ComparisonMappingBenchmarks
 }
 
 [DomainMapper]
+[MapRegistry]
 public static partial class DomainMapperBenchmarkMapper
 {
     public static partial BenchmarkFlatTarget MapFlat(BenchmarkFlatSource source);
@@ -113,6 +116,16 @@ public static partial class DomainMapperBenchmarkMapper
     public static partial BenchmarkAggregate Place(BenchmarkFlatSource source);
 
     public static partial BenchmarkIdTarget MapId(BenchmarkIdSource source);
+
+    [MapReferenceTracking]
+    public static partial BenchmarkGraphTarget MapGraph(BenchmarkGraphSource source);
+
+    [MapOnlyTargetMembers(nameof(BenchmarkCollectionTarget.Items))]
+    [MapCollection(nameof(BenchmarkCollectionTarget.Items), CollectionUpdatePolicy.ClearAndFill)]
+    public static partial void UpdateCollection(BenchmarkCollectionSource source, BenchmarkCollectionTarget target);
+
+    [MapProjection(nameof(MapRenamed))]
+    public static partial Expression<Func<BenchmarkRenamedSource, BenchmarkRenamedTarget>> ProjectRenamed();
 }
 
 #pragma warning disable RMG066 // Mapperly cannot account for members consumed inside a whole-source object factory.
@@ -192,6 +205,27 @@ public sealed record BenchmarkWarehouseSource(string Description);
 public sealed record BenchmarkRenamedSource(int ID, DateTimeOffset DateCreated, BenchmarkWarehouseSource Warehouse);
 
 public sealed record BenchmarkRenamedTarget(int EdcId, DateTimeOffset CreatedDate, string TransitWarehouseDescription);
+
+public sealed record BenchmarkCollectionSource(List<int> Items);
+
+public sealed class BenchmarkCollectionTarget
+{
+    public List<int> Items { get; } = [];
+}
+
+public sealed class BenchmarkGraphSource
+{
+    public int Value { get; set; }
+
+    public BenchmarkGraphSource? Next { get; set; }
+}
+
+public sealed class BenchmarkGraphTarget
+{
+    public int Value { get; set; }
+
+    public BenchmarkGraphTarget? Next { get; set; }
+}
 
 public readonly record struct BenchmarkAggregateId(int Value);
 
