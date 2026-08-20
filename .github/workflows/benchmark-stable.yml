@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
       - name: Run stable balanced comparison
@@ -27,7 +27,7 @@ jobs:
         run: ./scripts/run-stable-benchmarks.sh
       - name: Retain stable evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-stable-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/domainmapper-stable/**
