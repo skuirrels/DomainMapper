@@ -30,7 +30,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v6
       - run: dotnet build /p:TreatWarningsAsErrors=true
       - run: >-
           dotnet test -m:1 --no-build --logger 'junit' /p:CollectCoverage=true
@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: sudo apt update && sudo apt -y install zipmerge # zipmerge is used to merge the multi target nupkg
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v6
       - run: dotnet tool restore
       - run: RELEASE_VERSION="1.2.0-dev.$GITHUB_RUN_ID" ./build/package.sh
       - uses: actions/upload-artifact@v7
@@ -78,7 +78,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v6
       - run: dotnet tool restore
       - uses: actions/download-artifact@v8
         with:
@@ -113,7 +113,7 @@ jobs:
       - run: apk add --no-cache bash icu-libs krb5-libs libgcc libintl libssl3 libstdc++ zlib
       # delete global.json since we want to use custom versions here
       - run: rm global.json
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ matrix.dotnet }}
       - run: dotnet --list-sdks
@@ -179,7 +179,7 @@ jobs:
     needs: package
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v6
       - run: dotnet run --project ./samples/DomainMapper.Sample
 
       # run the same again with the real nuget without runtime assets
@@ -200,7 +200,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v6
       - uses: actions/download-artifact@v8
         with:
           name: domainmapper-nupkg
