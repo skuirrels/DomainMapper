@@ -34,7 +34,7 @@ on:
         required: false
         type: string
         default: ''
-        description: The released DomainMapper version referenced from the documentation; empty uses the development version from Directory.Build.props
+        description: Released version to reference from the docs; empty uses the development version in Directory.Build.props
   pull_request:
     branches:
       - '**'

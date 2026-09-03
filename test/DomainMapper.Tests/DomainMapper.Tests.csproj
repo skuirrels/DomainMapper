@@ -1,6 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Running every Roslyn-heavy generator test concurrently can exhaust the test host;
-       xunit.runner.json limits collection parallelism to four threads. -->
+  <!-- Roslyn-heavy generator tests can exhaust the test host; xunit.runner.json limits collection parallelism to four threads. -->
   <ItemGroup>
     <ProjectReference Include="../../src/DomainMapper.Projections/DomainMapper.Projections.csproj" />
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
