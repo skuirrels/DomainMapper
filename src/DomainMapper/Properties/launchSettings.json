@@ -1,9 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "IntegrationTests": {
+    "Sample": {
       "commandName": "DebugRoslynComponent",
-      "targetProject": "../../test/DomainMapper.IntegrationTests/DomainMapper.IntegrationTests.csproj"
+      "targetProject": "../../samples/DomainMapper.Sample/DomainMapper.Sample.csproj"
     }
   }
 }

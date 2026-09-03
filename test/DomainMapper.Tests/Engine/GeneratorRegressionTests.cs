@@ -967,4 +967,112 @@ public sealed class GeneratorRegressionTests
 
         result.Diagnostics.ShouldContain(x => x.Id == "DMPR101" && x.Severity == DiagnosticSeverity.Error);
     }
+
+    [Fact]
+    public void StampsGeneratedMembersWithTheGeneratorAssemblyVersion()
+    {
+        var result = GeneratorTestHarness.Generate(
+            """
+            using DomainMapper.Abstractions;
+
+            [DomainMapper]
+            [MapRegistry]
+            public static partial class Mapper
+            {
+                public static partial Target Map(Source source);
+            }
+
+            public sealed record Source(int Id);
+            public sealed record Target(int Id);
+            """
+        );
+
+        result.Errors.ShouldBeEmpty();
+        var version = typeof(DomainMapperGenerator).Assembly.GetName().Version.ShouldNotBeNull().ToString();
+        var stamp = $"[global::System.CodeDom.Compiler.GeneratedCode(\"DomainMapper\", \"{version}\")]";
+        result.Source.ShouldContain(stamp);
+        result.Source.ShouldNotContain("0.0.1.0");
+        result.Source.Split(stamp).Length.ShouldBe(4, "the mapping, TryMapRuntime, and MapRuntime members are all stamped");
+    }
+
+    [Fact]
+    public void MatchesMappingAttributesBySymbolWhenTheAbstractionsNamespaceIsRedeclaredInSource()
+    {
+        var result = GeneratorTestHarness.Generate(
+            """
+            using System;
+            using DomainMapper.Abstractions;
+
+            namespace DomainMapper.Abstractions
+            {
+                [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+                public sealed class MapMemberAttribute(string targetMember, string sourcePath) : Attribute
+                {
+                    public string TargetMember { get; } = targetMember;
+                    public string SourcePath { get; } = sourcePath;
+                }
+            }
+
+            [DomainMapper]
+            public static partial class Mapper
+            {
+                [MapMember(nameof(Target.ExternalId), nameof(Source.Id))]
+                public static partial Target Map(Source source);
+
+                public static int Run() => Map(new Source(7)).ExternalId;
+            }
+
+            public sealed record Source(int Id);
+            public sealed record Target(int ExternalId);
+            """
+        );
+
+        result.Errors.ShouldBeEmpty(result.Source);
+        result.Source.ShouldContain("new global::Target(source.Id)");
+        GeneratorTestHarness.InvokeStatic<int>(result, "Mapper", "Run").ShouldBe(7);
+    }
+
+    [Fact]
+    public void PlansConstructorArgumentsBeforeAssignmentsAndCompletionHooks()
+    {
+        var result = GeneratorTestHarness.Generate(
+            """
+            using DomainMapper.Abstractions;
+
+            [DomainMapper]
+            public static partial class Mapper
+            {
+                [MapNullSubstitute(nameof(Target.Note), "__DOMAINMAPPER_CREATE__(|)__")]
+                [IgnoreTargetMember(nameof(Target.Completed))]
+                public static partial Target Map(Source source);
+
+                [MapAfter(nameof(Map))]
+                private static void Complete(Target target) => target.Completed = target.Name + "/" + target.Note;
+
+                public static string Run() => Map(new Source(1, "Ada", null)).Completed;
+            }
+
+            public sealed record Source(int Id, string Name, string? Note);
+            public sealed class Target
+            {
+                public Target(int id) => Id = id;
+                public int Id { get; }
+                public string Name { get; set; } = "";
+                public string Note { get; set; } = "";
+                public string Completed { get; set; } = "";
+            }
+            """
+        );
+
+        result.Errors.ShouldBeEmpty(result.Source);
+        result.Source.ShouldContain("\"__DOMAINMAPPER_CREATE__(|)__\"");
+        result.Source.Split("__DOMAINMAPPER_CREATE__(").Length.ShouldBe(2, "the marker text may appear only inside the substitute literal");
+        var creation = result.Source.IndexOf("var target = new global::Target(source.Id);", StringComparison.Ordinal);
+        var assignment = result.Source.IndexOf("target.Name = source.Name;", StringComparison.Ordinal);
+        var hook = result.Source.IndexOf("Complete(target);", StringComparison.Ordinal);
+        creation.ShouldBeGreaterThanOrEqualTo(0);
+        assignment.ShouldBeGreaterThan(creation);
+        hook.ShouldBeGreaterThan(assignment);
+        GeneratorTestHarness.InvokeStatic<string>(result, "Mapper", "Run").ShouldBe("Ada/__DOMAINMAPPER_CREATE__(|)__");
+    }
 }

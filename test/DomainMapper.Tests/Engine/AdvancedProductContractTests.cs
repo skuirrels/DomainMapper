@@ -39,7 +39,10 @@ public sealed class AdvancedProductContractTests
         driver = driver.RunGenerators(compilation);
 
         var editedA = CSharpSyntaxTree.ParseText(
-            mapperA.GetText().ToString().Replace("int Value", "long Value"),
+            mapperA
+                .GetText()
+                .ToString()
+                .Replace("public sealed record TargetA(int Value);", "public sealed class TargetA { public int Value { get; set; } }"),
             parseOptions,
             "MapperA.cs"
         );
@@ -53,6 +56,7 @@ public sealed class AdvancedProductContractTests
             .SelectMany(x => x.Outputs)
             .Select(x => x.Reason)
             .ToArray();
+        reasons.Length.ShouldBe(2);
         reasons.ShouldContain(IncrementalStepRunReason.Modified);
         reasons.ShouldContain(x => x == IncrementalStepRunReason.Cached || x == IncrementalStepRunReason.Unchanged);
     }
@@ -85,6 +89,46 @@ public sealed class AdvancedProductContractTests
         driver = driver.RunGenerators(compilation);
 
         var editedContracts = CSharpSyntaxTree.ParseText(
+            "public sealed record Source(Child Value); public sealed record Target(ChildTarget Value); public sealed record Child(int Value); public sealed record ChildTarget(int Value);",
+            parseOptions,
+            "Contracts.cs"
+        );
+        driver = driver.RunGenerators(compilation.ReplaceSyntaxTree(contracts, editedContracts));
+        var result = driver.GetRunResult();
+
+        result
+            .Results.Single()
+            .TrackedSteps["MapperContracts"]
+            .SelectMany(x => x.Outputs)
+            .Select(x => x.Reason)
+            .ShouldAllBe(x => x == IncrementalStepRunReason.Modified);
+        result.GeneratedTrees.Length.ShouldBe(2);
+        result.GeneratedTrees.ShouldAllBe(x => x.GetText().ToString().Contains("MapToChildTarget(source.Value)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void KeepsMapperOutputUnchangedWhenAContractEditDoesNotAlterEmittedSource()
+    {
+        var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview);
+        var contracts = CSharpSyntaxTree.ParseText(
+            "public sealed record Source(int Value); public sealed record Target(int Value);",
+            parseOptions,
+            "Contracts.cs"
+        );
+        var mapper = CSharpSyntaxTree.ParseText(
+            "using DomainMapper.Abstractions; [DomainMapper] public static partial class Mapper { public static partial Target Map(Source source); }",
+            parseOptions,
+            "Mapper.cs"
+        );
+        var compilation = GeneratorTestHarness.CreateCompilation([contracts, mapper]);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            [new DomainMapperGenerator().AsSourceGenerator()],
+            driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true),
+            parseOptions: parseOptions
+        );
+        driver = driver.RunGenerators(compilation);
+
+        var editedContracts = CSharpSyntaxTree.ParseText(
             contracts.GetText().ToString().Replace("int Value", "long Value"),
             parseOptions,
             "Contracts.cs"
@@ -96,8 +140,8 @@ public sealed class AdvancedProductContractTests
             .Results.Single()
             .TrackedSteps["MapperContracts"]
             .SelectMany(x => x.Outputs)
-            .Select(x => x.Reason)
-            .ShouldAllBe(x => x == IncrementalStepRunReason.Modified);
+            .ShouldHaveSingleItem()
+            .Reason.ShouldBe(IncrementalStepRunReason.Unchanged);
     }
 
     [Fact]
@@ -125,8 +169,8 @@ public sealed class AdvancedProductContractTests
             using System.Reflection;
             [assembly: AssemblyVersion("2.0.0.0")]
             namespace Contracts;
-            public sealed class Source { public long Value { get; set; } }
-            public sealed class Target { public long Value { get; set; } }
+            public sealed class Source { public int Value { get; set; } public string Name { get; set; } = ""; }
+            public sealed class Target { public int Value { get; set; } public string Name { get; set; } = ""; }
             """
         );
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
@@ -136,14 +180,15 @@ public sealed class AdvancedProductContractTests
         );
         driver = driver.RunGenerators(GeneratorTestHarness.CreateCompilation([mapper], contractsV1));
         driver = driver.RunGenerators(GeneratorTestHarness.CreateCompilation([mapper], contractsV2));
+        var result = driver.GetRunResult();
 
-        driver
-            .GetRunResult()
+        result
             .Results.Single()
             .TrackedSteps["MapperContracts"]
             .SelectMany(x => x.Outputs)
             .ShouldHaveSingleItem()
             .Reason.ShouldBe(IncrementalStepRunReason.Modified);
+        result.GeneratedTrees.Single().GetText().ToString().ShouldContain("target.Name = source.Name;");
     }
 
     [Fact]
@@ -1090,5 +1135,41 @@ public sealed class AdvancedProductContractTests
 
         result.Errors.ShouldBeEmpty(result.Source);
         GeneratorTestHarness.InvokeStatic<bool>(result, "Mapper", "Run").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void RegeneratesWhenAnInheritedInterfaceMemberOfTheSourceChanges()
+    {
+        var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview);
+        var baseInterface = CSharpSyntaxTree.ParseText("public interface IBase { int Id { get; } }", parseOptions, "IBase.cs");
+        var mapper = CSharpSyntaxTree.ParseText(
+            "using DomainMapper.Abstractions; public interface ISource : IBase { string Name { get; } } public sealed class Target { public int Id { get; set; } public string Name { get; set; } = \"\"; } [DomainMapper] public static partial class Mapper { public static partial Target Map(ISource source); }",
+            parseOptions,
+            "Mapper.cs"
+        );
+        var compilation = GeneratorTestHarness.CreateCompilation([baseInterface, mapper]);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            [new DomainMapperGenerator().AsSourceGenerator()],
+            driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true),
+            parseOptions: parseOptions
+        );
+        driver = driver.RunGenerators(compilation);
+        driver.GetRunResult().Diagnostics.ShouldBeEmpty();
+
+        var editedBaseInterface = CSharpSyntaxTree.ParseText(
+            "public interface IBase { int Identifier { get; } }",
+            parseOptions,
+            "IBase.cs"
+        );
+        driver = driver.RunGenerators(compilation.ReplaceSyntaxTree(baseInterface, editedBaseInterface));
+        var result = driver.GetRunResult();
+
+        result
+            .Results.Single()
+            .TrackedSteps["MapperContracts"]
+            .SelectMany(x => x.Outputs)
+            .ShouldHaveSingleItem()
+            .Reason.ShouldBe(IncrementalStepRunReason.Modified);
+        result.Diagnostics.ShouldContain(x => x.Id == "DMPR101");
     }
 }

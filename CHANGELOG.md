@@ -4,6 +4,26 @@ All notable changes to DomainMapper are recorded here. The project follows seman
 
 ## [Unreleased]
 
+### Changed
+
+- Generated members are stamped with the generator assembly version instead of a fixed `0.0.1.0`.
+- Mapping attributes are matched by symbol instead of display-name strings.
+- Deferred target construction is planned structurally instead of through an encoded text marker.
+- The compiler engine is split into partial-class files by responsibility.
+- Release and CI versions derive from `Directory.Build.props` instead of hardcoded strings.
+- Generated diagnostics use file-based locations rehydrated from cached data.
+
+### Fixed
+
+- The incremental pipeline caches emitted source and diagnostic data instead of symbols, so cached mappers no longer keep old compilations alive and every contract edit is observed.
+- Package validation compares against the latest published release.
+
+## [1.2.1] - 2026-08-20
+
+### Changed
+
+- Updated Meziantou.Analyzer, Meziantou.Polyfill, the NuGet package validation tool, and grouped GitHub Actions dependencies.
+
 ## [1.2.0] - 2026-08-15
 
 ### Added
@@ -53,7 +73,8 @@ All notable changes to DomainMapper are recorded here. The project follows seman
 - Compile-time convention mapping for mutable and immutable targets.
 - Target-owned and mapper-owned factories, collection and dictionary mapping, and existing-target updates.
 
-[Unreleased]: https://github.com/skuirrels/DomainMapper/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/skuirrels/DomainMapper/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/skuirrels/DomainMapper/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/skuirrels/DomainMapper/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/skuirrels/DomainMapper/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/skuirrels/DomainMapper/releases/tag/v1.0.0
