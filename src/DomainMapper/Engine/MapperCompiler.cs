@@ -71,6 +71,7 @@ internal sealed partial class MapperCompiler
     private readonly HashSet<string> _reportedAmbiguousReuse = new(StringComparer.Ordinal);
     private readonly HashSet<string> _reportedFactoryBypass = new(StringComparer.Ordinal);
     private readonly HashSet<AttributeData> _consumedFactoryIgnores = [];
+    private readonly HashSet<string> _reportedEnumMismatches = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ImmutableArray<INamedTypeSymbol>> _attributeTypes = new(StringComparer.Ordinal);
     private string? _referenceKeyName;
 

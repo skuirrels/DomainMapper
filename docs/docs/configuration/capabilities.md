@@ -75,6 +75,10 @@ Convention construction of a target that declares an accessible static factory m
 
 `MapAfter` binds ordered, typed static completion hooks. Hooks run after generated assignments and receive supported combinations of source, target, and additional parameters. Prefer constructors, target factories, and domain methods for invariant-bearing behavior; hooks must not mutate private state or bypass an aggregate boundary.
 
+## Enums
+
+Enum pairs map by member name through a generated switch expression: exact names first, then a unique case-insensitive match. Every source member must have a target member, so renames, aliased source values, and `[Flags]` enums fail at build time with `DMPR109` unless a `[DomainFactory]` handles the pair. Target enums may declare additional members. Source values outside the declared members throw `InvalidOperationException` at runtime rather than mapping to a default. Nullable enums lift like other nullable value types. Projections do not include enum switches and report `DMPR106`.
+
 ## Collections and recursive graphs
 
 Arrays, lists, enumerable/read-only collection interfaces, and mutable/read-only dictionary interfaces are generated without LINQ allocation. Countable indexed inputs use capacity-aware loops; general `IEnumerable<T>` inputs are enumerated once.

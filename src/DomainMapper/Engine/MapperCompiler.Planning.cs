@@ -1398,6 +1398,9 @@ internal sealed partial class MapperCompiler
         if (conversion.Exists && conversion.IsImplicit)
             return true;
 
+        if (sourceType.TypeKind == TypeKind.Enum && targetType.TypeKind == TypeKind.Enum)
+            return TryMatchEnumMembers(sourceType, targetType, out _, out _);
+
         if (
             targetType is INamedTypeSymbol namedTarget
             && FindSingleValueConstructor(sourceType, namedTarget) is { } singleValueConstructor

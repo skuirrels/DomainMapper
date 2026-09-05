@@ -1,0 +1,7 @@
+# DMPR109 — Enum cannot be mapped by member name
+
+Two enum types are mapped by convention, but the generated switch cannot cover the source. Either a source member has no target member with the same name, two source members share a value so a value switch cannot distinguish them, or one side is a `[Flags]` enum whose combined values a by-name switch cannot represent.
+
+Align the member names, or declare a `[DomainFactory]` for the pair on the mapper; a domain factory takes precedence over by-name mapping and is the escape hatch for renamed members, aliases, and flags.
+
+Target enums may declare members the source does not; the generated switch throws `InvalidOperationException` only for source values outside the declared members.
