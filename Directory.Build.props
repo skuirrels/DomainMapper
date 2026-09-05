@@ -6,7 +6,7 @@
     <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>1.2.2-dev</Version>
+    <Version>1.2.3-dev</Version>
     <Authors>DomainMapper Contributors</Authors>
     <!-- release environment constants -->
     <DefineConstants Condition="'$(DOMAINMAPPER_ENVIRONMENT)' == 'next'">$(DefineConstants);ENV_NEXT</DefineConstants>
