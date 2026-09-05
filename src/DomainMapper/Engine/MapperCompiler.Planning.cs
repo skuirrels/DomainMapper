@@ -171,10 +171,20 @@ internal sealed partial class MapperCompiler
             sourceValueType = EffectivePathType(binding.SourceMembers);
             sourceMember = binding.Leaf;
         }
+        else if (TryFindExplicitParameter(configuration, context, targetMemberName, targetMemberType, out var explicitValue))
+        {
+            sourceValueExpression = explicitValue.Expression;
+            sourceValueType = explicitValue.Type;
+        }
         else if (TryFindMember(ReadableMembers(sourceType), targetMemberName, out sourceMember))
         {
             sourceValueExpression = $"{sourceExpression}.{Escape(sourceMember.Name)}";
             sourceValueType = sourceMember.Type;
+        }
+        else if (TryFindAmbientValue(context, targetMemberName, targetMemberType, out var ambientValue))
+        {
+            sourceValueExpression = ambientValue.Expression;
+            sourceValueType = ambientValue.Type;
         }
 
         if (configuration?.ComputedMembers.TryGetValue(targetMemberName, out var computedMethod) == true)
@@ -275,6 +285,50 @@ internal sealed partial class MapperCompiler
         value = regularValue;
         return true;
     }
+
+    /// <summary>
+    /// At a mapping's own root, an additional mapping parameter binds a same-named target member ahead of the convention
+    /// source member, matching the target-factory boundary rule. Nested helpers never see this precedence.
+    /// </summary>
+    private bool TryFindExplicitParameter(
+        MappingMethodConfiguration? configuration,
+        MappingContext context,
+        string targetMemberName,
+        ITypeSymbol targetMemberType,
+        out MappingValue value
+    )
+    {
+        value = null!;
+        if (configuration == null || context.IsHelper)
+            return false;
+        if (!TryFindValue(context.AmbientValues, targetMemberName, out value))
+            return false;
+        var parameterName = value.Name;
+        return configuration.Method.Parameters.Skip(1).Any(x => NamesEqual(x.Name, parameterName))
+            && CanConvert(value.Type, targetMemberType, context, new HashSet<string>(StringComparer.Ordinal));
+    }
+
+    /// <summary>Ambient values fill target members the source does not provide, mirroring member-bound domain factories.</summary>
+    private bool TryFindAmbientValue(
+        MappingContext context,
+        string targetMemberName,
+        ITypeSymbol targetMemberType,
+        out MappingValue value
+    ) =>
+        TryFindValue(context.AmbientValues, targetMemberName, out value)
+        && CanConvert(value.Type, targetMemberType, context, new HashSet<string>(StringComparer.Ordinal));
+
+    private bool CanProvideConventionValue(
+        IReadOnlyList<MappingMember> sourceMembers,
+        string targetMemberName,
+        ITypeSymbol targetMemberType,
+        MappingContext context,
+        ISet<string> visiting
+    ) =>
+        TryFindMember(sourceMembers, targetMemberName, out var sourceMember)
+            ? CanConvert(sourceMember.Type, targetMemberType, context, visiting)
+            : TryFindValue(context.AmbientValues, targetMemberName, out var ambient)
+                && CanConvert(ambient.Type, targetMemberType, context, visiting);
 
     private string? BuildConfiguredMethodCall(
         IMethodSymbol helper,
@@ -754,7 +808,10 @@ internal sealed partial class MapperCompiler
                 continue;
             if (
                 !consumedMembers.Contains(targetMember.Name)
-                && HasConfiguredOrConventionValue(configuration, sourceMembers, targetMember.Name)
+                && (
+                    HasConfiguredOrConventionValue(configuration, sourceMembers, targetMember.Name)
+                    || TryFindExplicitParameter(configuration, context, targetMember.Name, targetMember.Type, out _)
+                )
                 && !writableMembers.Any(x => SymbolEqualityComparer.Default.Equals(x.Symbol, targetMember.Symbol))
                 && CollectionPolicy(configuration, targetMember.Name) is not (1 or 2)
             )
@@ -1011,7 +1068,10 @@ internal sealed partial class MapperCompiler
             var requiresInitializer = targetMember.IsRequired && !constructorSetsRequiredMembers;
             if (
                 (!consumedMembers.Contains(targetMember.Name) || requiresInitializer)
-                && HasConfiguredOrConventionValue(configuration, sourceMembers, targetMember.Name)
+                && (
+                    HasConfiguredOrConventionValue(configuration, sourceMembers, targetMember.Name)
+                    || TryFindExplicitParameter(configuration, context, targetMember.Name, targetMember.Type, out _)
+                )
                 && !settableMembers.Any(x => SymbolEqualityComparer.Default.Equals(x.Symbol, targetMember.Symbol))
             )
             {
@@ -1246,10 +1306,7 @@ internal sealed partial class MapperCompiler
                 var constructorValid = true;
                 foreach (var parameter in constructor.Parameters)
                 {
-                    if (
-                        !TryFindMember(sourceMembers, parameter.Name, out var sourceMember)
-                        || !CanConvert(sourceMember.Type, parameter.Type, context, visiting)
-                    )
+                    if (!CanProvideConventionValue(sourceMembers, parameter.Name, parameter.Type, context, visiting))
                     {
                         constructorValid = false;
                         break;
@@ -1267,14 +1324,15 @@ internal sealed partial class MapperCompiler
                 var settableMembers = SettableMembers(targetType);
                 var assignmentsValid = settableMembers
                     .Where(x => !consumed.Contains(x.Name) || (x.IsRequired && !constructorSetsRequiredMembers))
-                    .All(x =>
-                        TryFindMember(sourceMembers, x.Name, out var sourceMember)
-                        && CanConvert(sourceMember.Type, x.Type, context, visiting)
-                    );
+                    .All(x => CanProvideConventionValue(sourceMembers, x.Name, x.Type, context, visiting));
+                var rootConfiguration = RootConfiguration(context, sourceType, targetType);
                 var inaccessibleStateIsSafe = ReadableMembers(targetType)
                     .All(x =>
                         (consumed.Contains(x.Name) && (!x.IsRequired || constructorSetsRequiredMembers))
-                        || !TryFindMember(sourceMembers, x.Name, out _)
+                        || (
+                            !TryFindMember(sourceMembers, x.Name, out _)
+                            && !TryFindExplicitParameter(rootConfiguration, context, x.Name, x.Type, out _)
+                        )
                         || settableMembers.Any(y => SymbolEqualityComparer.Default.Equals(x.Symbol, y.Symbol))
                     );
                 var consumesSource =

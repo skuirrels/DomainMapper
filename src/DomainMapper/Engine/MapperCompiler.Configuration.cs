@@ -768,6 +768,7 @@ internal sealed partial class MapperCompiler
             if (
                 conventionTargets.TryGetValue(sourceMember.Name, out var targetMember)
                 && !configuration.ComputedMembers.ContainsKey(targetMember.Name)
+                && !(factory == null && TryFindExplicitParameter(configuration, context, targetMember.Name, targetMember.Type, out _))
                 && CanConsumeConventionSource(configuration, sourceMember.Type, targetMember.Type, targetMember.Name, context)
             )
                 consumed.Add(sourceMember.Name);
