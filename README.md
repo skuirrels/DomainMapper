@@ -44,7 +44,7 @@ DomainMapper 1.2 supports:
 - nested objects, arrays, lists, read-only collection targets, and mutable or read-only dictionary interfaces;
 - existing-target property updates;
 - explicit property and field renames, including nested source paths;
-- typed computed target members and additional mapping parameters;
+- typed computed target members and additional mapping parameters bound to factory, constructor, and settable members;
 - target/source completeness, typed ignores, and allow-listed partial updates;
 - conditional and null-aware assignments with constant substitution;
 - typed completion hooks, mapping composition, and bounded recursion;

@@ -69,7 +69,7 @@ Nullable value types lift through the same conversions as their underlying types
 
 ## Construction, completion, and domain boundaries
 
-Target-owned factories selected by `MapToFactory` remain mandatory and fail closed. Mapper-owned `DomainFactory` methods support whole-source or member inputs. Additional mapping parameters take precedence at a target factory boundary.
+Target-owned factories selected by `MapToFactory` remain mandatory and fail closed. Mapper-owned `DomainFactory` methods support whole-source or member inputs. Additional mapping parameters bind by name to target factory parameters, constructor parameters, and settable members alike: at the mapping's own root they take precedence over a same-named source member, which then counts as unconsumed under source completeness, and in nested helpers they fill members the nested source does not provide. Root state matched only by an additional parameter must be writable, otherwise `DMPR101` is reported.
 
 Convention construction of a target that declares an accessible static factory method reports warning `DMPR108` once per mapping and target, whether the constructor is called at the root, in a nested helper, or as a single-value wrap. `[IgnoreTargetFactory(typeof(T), Reason = "...")]` records the decision per mapping and type and is validated as stale when unused; `WarningsAsErrors` promotes the warning to an error project-wide. Generator diagnostics do not observe `.editorconfig` severities or `#pragma warning`.
 
