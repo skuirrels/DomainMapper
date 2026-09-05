@@ -65,6 +65,8 @@ private static bool ShouldApplyDate(BookingUpdate source, Booking target) =>
 
 Nullable-to-non-nullable conversion without an explicit safe policy or conversion fails generation. Nullable roots map to nullable roots with a generated null guard. Nested paths use null-conditional member access.
 
+Nullable value types lift through the same conversions as their underlying types: `int?` maps to a nullable value object whenever `int` maps to that value object through a `[DomainFactory]`, a single-value constructor, or a convention helper, and a nullable reference source lifts into a nullable value-type target the same way. Implicit lifted conversions stay direct. Projections keep the implicit pure subset only.
+
 ## Construction, completion, and domain boundaries
 
 Target-owned factories selected by `MapToFactory` remain mandatory and fail closed. Mapper-owned `DomainFactory` methods support whole-source or member inputs. Additional mapping parameters take precedence at a target factory boundary.

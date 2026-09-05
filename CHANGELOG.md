@@ -10,6 +10,8 @@ All notable changes to DomainMapper are recorded here. The project follows seman
 
 ### Fixed
 
+- `Nullable<T>` no longer exposes `Value` and `HasValue` as convention source members, so a nullable source can no longer be unwrapped into a non-nullable target without a null policy.
+- Nullable value types lift through domain factories, single-value constructors, and convention helpers on either side, so `int?` maps to a nullable strongly typed identifier and `string?` maps to a nullable value-type wrapper.
 - Parameterless construction that consumes no source data now fails with `DMPR101` instead of emitting `new T()` and silently dropping the source value behind default state.
 
 ## [1.2.2] - 2026-09-05

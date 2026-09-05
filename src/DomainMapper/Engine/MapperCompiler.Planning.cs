@@ -1304,10 +1304,15 @@ internal sealed partial class MapperCompiler
         if (targetType.IsReferenceType && targetType.NullableAnnotation == NullableAnnotation.Annotated)
         {
             var nonNullableTarget = targetType.WithNullableAnnotation(NullableAnnotation.NotAnnotated);
-            var nonNullableSource = sourceType.IsReferenceType
-                ? sourceType.WithNullableAnnotation(NullableAnnotation.NotAnnotated)
-                : sourceType;
-            return CanConvert(nonNullableSource, nonNullableTarget, context, visiting);
+            return CanConvert(NonNullableType(sourceType), nonNullableTarget, context, visiting);
+        }
+
+        if (IsNullableValueType(targetType, out var targetUnderlying))
+        {
+            var liftedConversion = _compilation.ClassifyConversion(sourceType, targetType);
+            if (liftedConversion.Exists && liftedConversion.IsImplicit)
+                return true;
+            return CanConvert(NonNullableType(sourceType), targetUnderlying, context, visiting);
         }
 
         if (sourceType.IsReferenceType && sourceType.NullableAnnotation == NullableAnnotation.Annotated)

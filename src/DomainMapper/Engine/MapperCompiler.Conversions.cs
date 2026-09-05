@@ -32,7 +32,38 @@ internal sealed partial class MapperCompiler
                 return nullableExpression == null ? null : $"{sourceExpression} is null ? null : {nullableExpression}";
             }
 
+            if (IsNullableValueType(sourceType, out var sourceUnderlying))
+            {
+                var lifted = ConvertExpression(
+                    sourceUnderlying,
+                    nonNullableTarget,
+                    NonNullExpression(sourceExpression, sourceType),
+                    context
+                );
+                return lifted == null ? null : $"{sourceExpression} is null ? null : {lifted}";
+            }
+
             return ConvertExpression(sourceType, nonNullableTarget, sourceExpression, context);
+        }
+
+        if (IsNullableValueType(targetType, out var targetUnderlying))
+        {
+            var liftedConversion = _compilation.ClassifyConversion(sourceType, targetType);
+            if (liftedConversion.Exists && liftedConversion.IsImplicit)
+                return sourceExpression;
+
+            if (IsNullable(sourceType))
+            {
+                var lifted = ConvertExpression(
+                    NonNullableType(sourceType),
+                    targetUnderlying,
+                    NonNullExpression(sourceExpression, sourceType),
+                    context
+                );
+                return lifted == null ? null : $"{sourceExpression} is null ? default({TypeName(targetType)}) : {lifted}";
+            }
+
+            return ConvertExpression(sourceType, targetUnderlying, sourceExpression, context);
         }
 
         if (sourceType.IsReferenceType && sourceType.NullableAnnotation == NullableAnnotation.Annotated)
@@ -303,6 +334,18 @@ internal sealed partial class MapperCompiler
     private static bool IsNullable(ITypeSymbol type) =>
         type.NullableAnnotation == NullableAnnotation.Annotated
         || type is INamedTypeSymbol named && named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
+
+    private static bool IsNullableValueType(ITypeSymbol type, out ITypeSymbol underlyingType)
+    {
+        if (type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
+        {
+            underlyingType = nullable.TypeArguments[0];
+            return true;
+        }
+
+        underlyingType = null!;
+        return false;
+    }
 
     private static ITypeSymbol NonNullableType(ITypeSymbol type) =>
         type is INamedTypeSymbol named && named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ? named.TypeArguments[0]
