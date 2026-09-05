@@ -466,4 +466,116 @@ public sealed class ReviewRegressionTests
 
         result.Diagnostics.ShouldContain(x => x.Id == "DMPR102");
     }
+
+    [Theory]
+    [InlineData(
+        "System.Guid",
+        """
+            public readonly struct Wrapper
+            {
+                private Wrapper(System.Guid value) => Value = value;
+                public System.Guid Value { get; }
+                public static Wrapper From(System.Guid value) => new(value);
+            }
+            """
+    )]
+    [InlineData(
+        "int",
+        """
+            public readonly struct Wrapper
+            {
+                public readonly int Value;
+                private Wrapper(int value) => Value = value;
+                public static Wrapper From(int value) => new(value);
+            }
+            """
+    )]
+    [InlineData(
+        "string",
+        """
+            public sealed class Wrapper
+            {
+                public Wrapper() { }
+                public Wrapper(string value, bool marker) => Value = value;
+                public string Value { get; } = "";
+            }
+            """
+    )]
+    public void RejectsParameterlessConstructionThatConsumesNoSourceData(string sourceType, string wrapper)
+    {
+        var result = GeneratorTestHarness.Generate(
+            $$"""
+            using DomainMapper.Abstractions;
+
+            [DomainMapper]
+            public static partial class Mapper
+            {
+                public static partial Target Map(Source source);
+            }
+
+            public sealed record Source({{sourceType}} Id, string Name);
+            public sealed record Target(Wrapper Id, string Name);
+            {{wrapper}}
+            """
+        );
+
+        result.Errors.ShouldContain(x => x.Id == "DMPR101");
+        result.Source.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void RejectsParameterlessStructConstructionUnderSourceCompleteness()
+    {
+        var result = GeneratorTestHarness.Generate(
+            """
+            using DomainMapper.Abstractions;
+
+            [DomainMapper]
+            public static partial class Mapper
+            {
+                [MappingCompleteness(MappingCompleteness.Both)]
+                public static partial Target Map(Source source);
+            }
+
+            public sealed record Source(int Id);
+            public sealed record Target(Wrapper Id);
+            public readonly record struct Wrapper
+            {
+                private Wrapper(int value) => Value = value;
+                public int Value { get; }
+                public static Wrapper From(int value) => new(value);
+            }
+            """
+        );
+
+        result.Errors.ShouldContain(x => x.Id == "DMPR101");
+        result.Source.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void KeepsStatelessTargetsConstructibleFromParameterlessConstructors()
+    {
+        var result = GeneratorTestHarness.Generate(
+            """
+            using DomainMapper.Abstractions;
+
+            [DomainMapper]
+            public static partial class Mapper
+            {
+                public static partial Target Map(Source source);
+
+                public static string Run() => Map(new Source(new MarkerSource(), "name")).Marker is Marker ? "ok" : "missing";
+            }
+
+            public sealed class MarkerSource;
+            public sealed class Marker;
+            public sealed record Source(MarkerSource Marker, string Name);
+            public sealed record Target(Marker Marker, string Name);
+            """
+        );
+
+        result.Errors.ShouldBeEmpty(result.Source);
+        result.Source.ShouldContain("new global::Marker()");
+        GeneratorTestHarness.InvokeStatic<string>(result, "Mapper", "Run").ShouldBe("ok");
+    }
 }

@@ -4,6 +4,10 @@ All notable changes to DomainMapper are recorded here. The project follows seman
 
 ## [Unreleased]
 
+### Fixed
+
+- Parameterless construction that consumes no source data now fails with `DMPR101` instead of emitting `new T()` and silently dropping the source value behind default state.
+
 ## [1.2.2] - 2026-09-05
 
 ### Changed

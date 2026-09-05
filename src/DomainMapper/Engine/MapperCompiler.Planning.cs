@@ -95,7 +95,11 @@ internal sealed partial class MapperCompiler
         if (plan == null)
         {
             if (factoryName == null)
+            {
+                // Surface which source members could not be consumed alongside the construction failure.
+                ValidateSourceCompleteness(configuration, null, null);
                 ReportCannotConstruct(method, sourceParameter.Type, method.ReturnType);
+            }
             return;
         }
 
@@ -549,7 +553,7 @@ internal sealed partial class MapperCompiler
                 false,
                 request.Context,
                 out var assignments
-            )
+            ) || (assignments.Length == 0 && HasReadableState(request.TargetType))
         )
         {
             _successfulMappingMethods.Remove(request.Context.Configuration!.Method);
@@ -1084,6 +1088,13 @@ internal sealed partial class MapperCompiler
             }
         }
 
+        if (consumedMembers.Count == 0 && initializerEntries.Count == 0 && assignmentLines.Count == 0 && HasReadableState(targetType))
+        {
+            initializer = string.Empty;
+            assignments = string.Empty;
+            return false;
+        }
+
         initializer = initializerEntries.Count == 0 ? string.Empty : $" {{ {string.Join(", ", initializerEntries)} }}";
         assignments = string.Join("\n", assignmentLines);
         return true;
@@ -1261,7 +1272,10 @@ internal sealed partial class MapperCompiler
                         || !TryFindMember(sourceMembers, x.Name, out _)
                         || settableMembers.Any(y => SymbolEqualityComparer.Default.Equals(x.Symbol, y.Symbol))
                     );
-                if (assignmentsValid && inaccessibleStateIsSafe)
+                var consumesSource =
+                    consumed.Count > 0
+                    || settableMembers.Any(x => !consumed.Contains(x.Name) || (x.IsRequired && !constructorSetsRequiredMembers));
+                if (assignmentsValid && inaccessibleStateIsSafe && (consumesSource || !HasReadableState(targetType)))
                     return true;
             }
 
