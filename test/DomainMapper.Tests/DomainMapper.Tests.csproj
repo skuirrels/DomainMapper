@@ -5,6 +5,7 @@
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\.github\workflows\release.yml" Link="Repository\release.yml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\.github\workflows\test.yml" Link="Repository\test.yml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\.github\workflows\benchmark.yml" Link="Repository\benchmark.yml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\build\package.sh" Link="Repository\package.sh" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\CHANGELOG.md" Link="Repository\CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\README.md" Link="Repository\README.md" CopyToOutputDirectory="PreserveNewest" />

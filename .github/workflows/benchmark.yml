@@ -33,6 +33,7 @@ permissions:
 env:
   BENCHMARKS_PATH: 'benchmarks/DomainMapper.Benchmarks'
   BENCHMARK_RESULT_DIR: 'benchmarks/DomainMapper.Benchmarks/artifacts/results'
+  BENCHMARK_GENERATED_DIR: 'artifacts/obj/DomainMapper.Benchmarks/release/generated'
   BENCHMARK_REVERSED_RESULT_DIR: 'benchmarks/DomainMapper.Benchmarks/artifacts/domainmapper-first/results'
   BENCHMARK_BASELINE_DIR: './benchmark-results'
   BENCHMARK_BASELINE_FILE: './benchmark-results/benchmark-baseline-report.json'
@@ -73,8 +74,8 @@ jobs:
           dotnet run --no-build --configuration Release
           --project ${{ env.BENCHMARKS_PATH }}/DomainMapper.Benchmarks.csproj --
           --write-comparison-parity
-          artifacts/obj/DomainMapper.Benchmarks/release/generated/DomainMapper/DomainMapper.DomainMapperGenerator/*DomainMapperBenchmarkMapper*.g.cs
-          artifacts/obj/DomainMapper.Benchmarks/release/generated/Riok.Mapperly/Riok.Mapperly.MapperGenerator/MapperlyBenchmarkMapper.g.cs
+          ${{ env.BENCHMARK_GENERATED_DIR }}/DomainMapper/DomainMapper.DomainMapperGenerator/*DomainMapperBenchmarkMapper*.g.cs
+          ${{ env.BENCHMARK_GENERATED_DIR }}/Riok.Mapperly/Riok.Mapperly.MapperGenerator/MapperlyBenchmarkMapper.g.cs
           ${{ env.BENCHMARKS_PATH }}/ComparisonMappingBenchmarks.cs
           ${{ env.BENCHMARK_RESULT_DIR }}/DomainMapper-vs-Mapperly-parity.json
       - name: Restore baseline results
@@ -112,7 +113,10 @@ jobs:
           --check-comparison
           ${{ env.BENCHMARK_RESULT_DIR }}/DomainMapper.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
           ${{ env.BENCHMARK_REVERSED_RESULT_DIR }}/DomainMapper.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
-      - name: Compare benchmark result
+      # Historical trend only. Absolute nanosecond timings drift between hosted runner generations, so this
+      # comparison against the cached main baseline is informational; the paired same-run Mapperly gate above
+      # is the failing check. Keeping this step green also lets the main baseline refresh on every run.
+      - name: Record benchmark trend
         uses: rhysd/github-action-benchmark@v1
         with:
           name: ${{ matrix.BENCHMARK_NAME }}
@@ -120,11 +124,13 @@ jobs:
           external-data-json-path: ${{ env.BENCHMARK_BASELINE_FILE }}
           output-file-path: >-
             ${{ env.BENCHMARK_RESULT_DIR }}/DomainMapper.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
-          alert-threshold: '125%'
-          fail-threshold: '125%'
+          alert-threshold: '150%'
           summary-always: true
-          comment-on-alert: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
-          fail-on-alert: true
+          comment-on-alert: >-
+            ${{ github.event_name == 'pull_request'
+            && github.event.pull_request.head.repo.full_name == github.repository
+            && github.actor != 'dependabot[bot]' }}
+          fail-on-alert: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Store baseline results
         id: cache-baseline-results-save
