@@ -8,6 +8,7 @@ internal sealed partial class MapperCompiler
     private const string DomainFactoryAttribute = "DomainMapper.Abstractions.DomainFactoryAttribute";
     private const string IgnoreSourceMemberAttribute = "DomainMapper.Abstractions.IgnoreSourceMemberAttribute";
     private const string IgnoreTargetMemberAttribute = "DomainMapper.Abstractions.IgnoreTargetMemberAttribute";
+    private const string IgnoreTargetFactoryAttribute = "DomainMapper.Abstractions.IgnoreTargetFactoryAttribute";
     private const string IncludeMappingAttribute = "DomainMapper.Abstractions.IncludeMappingAttribute";
     private const string MapCollectionAttribute = "DomainMapper.Abstractions.MapCollectionAttribute";
     private const string MapConditionAttribute = "DomainMapper.Abstractions.MapConditionAttribute";
@@ -68,6 +69,8 @@ internal sealed partial class MapperCompiler
     private readonly HashSet<IMethodSymbol> _successfulMappingMethods = new(SymbolEqualityComparer.Default);
     private readonly Dictionary<IMethodSymbol, HashSet<IMethodSymbol>> _declaredMappingReuse = new(SymbolEqualityComparer.Default);
     private readonly HashSet<string> _reportedAmbiguousReuse = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _reportedFactoryBypass = new(StringComparer.Ordinal);
+    private readonly HashSet<AttributeData> _consumedFactoryIgnores = [];
     private readonly Dictionary<string, ImmutableArray<INamedTypeSymbol>> _attributeTypes = new(StringComparer.Ordinal);
     private string? _referenceKeyName;
 
@@ -133,6 +136,7 @@ internal sealed partial class MapperCompiler
         }
 
         RejectDeclaredMappingCycles();
+        ValidateFactoryIgnores();
         BuildProjections();
         BuildRuntimeRegistry();
 

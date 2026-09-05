@@ -569,6 +569,7 @@ internal sealed partial class MapperCompiler
             return;
         }
 
+        ReportFactoryBypass(request.TargetType, request.Context);
         var declaration = BuildHelperDeclaration(request.TargetType, request.MethodName, request.SourceType, request.Context);
         var depthGuard = BuildDepthGuard(request.TargetType, request.Context);
         var referenceKeyName = EnsureReferenceKey();
@@ -642,7 +643,10 @@ internal sealed partial class MapperCompiler
         {
             var creation = BuildConstructorCreation(sourceType, targetType, sourceExpression, constructor, context);
             if (creation != null)
+            {
+                ReportFactoryBypass(targetType, context);
                 return creation;
+            }
         }
 
         var parameterlessConstructor = constructors.FirstOrDefault(x => x.Parameters.Length == 0);
@@ -662,6 +666,7 @@ internal sealed partial class MapperCompiler
             )
                 return null;
 
+            ReportFactoryBypass(targetType, context);
             return new CreationPlan($"new {TypeName(targetType)}(){initializer}", assignments);
         }
 

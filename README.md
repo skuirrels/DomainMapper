@@ -58,7 +58,7 @@ DomainMapper 1.2 supports:
 
 Fields participate when they are named by an explicit mapping contract; convention mapping remains property-only for compatibility. See the [authoritative capabilities and limitations](docs/docs/configuration/capabilities.md) and [versioned changelog](CHANGELOG.md).
 
-Construction is fail-closed: every accessible writable target member must be mapped, and source-matched target state that is not writable from the generated mapper is rejected with `DMPR101`.
+Construction is fail-closed: every accessible writable target member must be mapped, and source-matched target state that is not writable from the generated mapper is rejected with `DMPR101`. Constructing a target that declares a static factory without going through it reports warning `DMPR108`.
 
 Unsupported projection or tracking shapes fail at build time. Private-member mutation remains unsupported, and no feature scans assemblies, infers persistence semantics, or introduces mutable runtime mapping configuration.
 

@@ -1,0 +1,16 @@
+# DMPR108 — Target factory bypassed
+
+Generated code constructs a target through its constructor or member assignment although the target declares an accessible static factory method that returns the target type from other arguments. The mapping still generates; this warning makes the bypass visible in review. It is reported once per mapping method and target type, whether the constructor is called at the root, in a nested helper, or as a single-value wrap.
+
+Route construction through `[MapToFactory]` on the mapping method or a `[DomainFactory]` on the mapper. When the constructor is the intended path, declare it per mapping and type:
+
+```csharp
+[IgnoreTargetFactory(typeof(Customer), Reason = "EF Core entity; setters are the persistence write path")]
+public static partial Customer ToEntity(CustomerDto source);
+```
+
+A declaration whose type the mapping never constructs directly is reported as stale with `DMPR102`.
+
+Project-wide, `WarningsAsErrors` promotes `DMPR108` to an error and `NoWarn` silences it. Generator diagnostics are not affected by `.editorconfig` severities, `#pragma warning`, or `[SuppressMessage]`, so use the attribute for per-mapping decisions.
+
+Operators, generic methods, parameterless methods, methods that take the target type, and static properties are not treated as factories.
