@@ -5,14 +5,14 @@
 
 **Map data. Preserve invariants.**
 
-DomainMapper is a small compile-time mapper for .NET with a domain-driven design bias. Its source generator emits direct C# and does not use runtime reflection. Version `1.2` adds opt-in collection policies, reference preservation, runtime dispatch, and query projections while retaining domain-owned constructors and factories.
+DomainMapper is a small compile-time mapper for .NET with a domain-driven design bias. Its source generator emits direct C# and does not use runtime reflection. Version `1.3` routes nested values through declared sibling mappings, lifts nullable value types, maps enum pairs by name, binds additional parameters to constructors, and warns when a target factory is bypassed, while retaining domain-owned constructors and factories.
 
-## Version 1.2.2
+## Version 1.3.0
 
 Install DomainMapper from NuGet with:
 
 ```bash
-dotnet add package DomainMapper --version 1.2.2
+dotnet add package DomainMapper --version 1.3.0
 ```
 
 ## Domain-first mapping
@@ -35,7 +35,7 @@ public static partial class OrderMapper
 
 ## Supported mappings
 
-DomainMapper 1.2 supports:
+DomainMapper 1.3 supports:
 
 - mutable targets with accessible parameterless constructors;
 - immutable targets and records with accessible constructors;
