@@ -115,7 +115,9 @@ jobs:
           ${{ env.BENCHMARK_REVERSED_RESULT_DIR }}/DomainMapper.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
       # Historical trend only. Absolute nanosecond timings drift between hosted runner generations, so this
       # comparison against the cached main baseline is informational; the paired same-run Mapperly gate above
-      # is the failing check. Keeping this step green also lets the main baseline refresh on every run.
+      # is the failing check. The trend lands in the job summary only: a version-only change measured 1.76x on
+      # the cold-generation microbenchmark, so alert comments were noise. Keeping this step green also lets the
+      # main baseline refresh on every run.
       - name: Record benchmark trend
         uses: rhysd/github-action-benchmark@v1
         with:
@@ -124,12 +126,8 @@ jobs:
           external-data-json-path: ${{ env.BENCHMARK_BASELINE_FILE }}
           output-file-path: >-
             ${{ env.BENCHMARK_RESULT_DIR }}/DomainMapper.Benchmarks.${{ matrix.BENCHMARK_NAME }}-report-full-compressed.json
-          alert-threshold: '150%'
           summary-always: true
-          comment-on-alert: >-
-            ${{ github.event_name == 'pull_request'
-            && github.event.pull_request.head.repo.full_name == github.repository
-            && github.actor != 'dependabot[bot]' }}
+          comment-on-alert: false
           fail-on-alert: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Store baseline results
