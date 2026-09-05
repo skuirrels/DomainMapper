@@ -55,7 +55,9 @@ internal sealed partial class MapperCompiler
             return cachedMembers;
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        if (type is not INamedTypeSymbol named)
+        // Nullable<T> is a lifted value, never a member bag: binding its Value or HasValue by convention would unwrap the
+        // source without the null check that nullable policies and lifted conversions provide.
+        if (type is not INamedTypeSymbol named || named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
             return [];
 
         var members = new List<MappingMember>();
