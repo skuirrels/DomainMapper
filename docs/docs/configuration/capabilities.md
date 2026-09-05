@@ -1,6 +1,6 @@
 # Capabilities and limitations
 
-This page is the authoritative product contract for the next DomainMapper 1.2 release. Generated mappings use direct C# calls and member access; none of these features uses runtime reflection, assembly scanning, or mutable runtime configuration.
+This page is the authoritative product contract for DomainMapper 1.3. Generated mappings use direct C# calls and member access; none of these features uses runtime reflection, assembly scanning, or mutable runtime configuration.
 
 ## Explicit mapping contract
 
