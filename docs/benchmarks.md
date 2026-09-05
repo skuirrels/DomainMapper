@@ -111,6 +111,16 @@ dotnet run -c Release --project benchmarks/DomainMapper.Benchmarks -- \
 
 Use the default six runtime pairs on dedicated, idle hardware before making a release-level performance claim.
 
+## Hosted continuous integration gates
+
+The `benchmark` workflow runs on shared GitHub-hosted runners, so it applies two different rules:
+
+- The paired Mapperly no-regression policy is the failing check. Both implementations are measured in the same run in balanced execution order, so runner speed cancels out.
+- The trend comparison against the cached `main` baseline is informational. Absolute nanosecond timings drift between hosted runner generations, so it never fails the job; it adds a job summary and comments on same-repository pull requests only when a scenario moves by more than 150%.
+- The `main` baseline is stored after every successful run, so it always reflects the current runner environment.
+
+Use the dedicated `benchmark-stable` workflow or `scripts/run-stable-benchmarks.sh` on idle hardware before treating any hosted trend movement as a regression.
+
 ## Regression policy
 
 - Fingerprint-equivalent generated paths are classified as proven parity; sub-nanosecond jitter does not select a winner.
