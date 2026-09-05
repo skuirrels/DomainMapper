@@ -59,7 +59,10 @@ internal sealed partial class MapperCompiler
             {
                 var consumedMembers = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { singleValueConstructor.Parameters[0].Name };
                 if (CanUseScalarConstructor(namedTarget, singleValueConstructor, consumedMembers))
+                {
+                    ReportFactoryBypass(targetType, context);
                     return $"new {TypeName(targetType)}({sourceExpression})";
+                }
             }
         }
 
@@ -324,6 +327,92 @@ internal sealed partial class MapperCompiler
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Warns once per mapping and target when generated code constructs a type directly although the type declares an
+    /// accessible static factory. The mapping still generates; the warning makes the bypass visible in review.
+    /// </summary>
+    private void ReportFactoryBypass(ITypeSymbol targetType, MappingContext context)
+    {
+        if (targetType is not INamedTypeSymbol namedTarget)
+            return;
+        var factories = TargetFactoryMethods(namedTarget).Select(x => x.Name).Distinct(StringComparer.Ordinal).ToArray();
+        if (factories.Length == 0)
+            return;
+
+        ISymbol reportedOn = (ISymbol?)context.Configuration?.Method ?? _mapperType;
+        if (!_reportedFactoryBypass.Add($"{reportedOn.ToDisplayString()}|{TypeName(targetType)}"))
+            return;
+        if (context.Configuration != null && IsFactoryIgnored(context.Configuration.Method, targetType))
+            return;
+        _diagnostics.Add(
+            DiagnosticData.Create(
+                MapperDiagnostics.FactoryBypassed,
+                reportedOn.Locations.FirstOrDefault(),
+                reportedOn.Name,
+                targetType.ToDisplayString(),
+                string.Join(", ", factories.Select(x => $"'{x}'"))
+            )
+        );
+    }
+
+    private bool IsFactoryIgnored(IMethodSymbol method, ITypeSymbol targetType)
+    {
+        var ignored = false;
+        foreach (var attribute in Attributes(method, IgnoreTargetFactoryAttribute))
+        {
+            if (attribute.ConstructorArguments is [{ Value: ITypeSymbol ignoredType }] && RuntimeTypesEqual(ignoredType, targetType))
+            {
+                _consumedFactoryIgnores.Add(attribute);
+                ignored = true;
+            }
+        }
+        return ignored;
+    }
+
+    /// <summary>A factory ignore that no generated construction consumed is stale configuration, like any other unused contract.</summary>
+    private void ValidateFactoryIgnores()
+    {
+        foreach (var method in _mappingMethods)
+        {
+            var declaration = BuildDeclaration(method);
+            if (!_rootContracts.Any(x => string.Equals(x.Declaration, declaration, StringComparison.Ordinal)))
+                continue;
+            foreach (var attribute in Attributes(method, IgnoreTargetFactoryAttribute).Where(x => !_consumedFactoryIgnores.Contains(x)))
+            {
+                var ignoredType = attribute.ConstructorArguments is [{ Value: ITypeSymbol type }] ? type.ToDisplayString() : "<unknown>";
+                ReportInvalidConfiguration(
+                    method,
+                    $"[IgnoreTargetFactory] for '{ignoredType}' is stale because the mapping does not construct that type through a constructor"
+                );
+            }
+        }
+    }
+
+    /// <summary>
+    /// Accessible static methods that return the target type from at least one non-target argument. Operators, generic
+    /// methods, parameterless methods, combinators taking the target type, and static properties are not factories.
+    /// </summary>
+    private IEnumerable<IMethodSymbol> TargetFactoryMethods(INamedTypeSymbol targetType)
+    {
+        for (var current = targetType; current != null; current = current.BaseType)
+        {
+            foreach (var method in current.GetMembers().OfType<IMethodSymbol>())
+            {
+                if (
+                    method.IsStatic
+                    && method.MethodKind == MethodKind.Ordinary
+                    && !method.IsImplicitlyDeclared
+                    && method.TypeParameters.Length == 0
+                    && method.Parameters.Length > 0
+                    && IsAccessible(method)
+                    && RuntimeTypesEqual(method.ReturnType, targetType)
+                    && method.Parameters.All(x => x.RefKind == RefKind.None && !RuntimeTypesEqual(x.Type, targetType))
+                )
+                    yield return method;
+            }
+        }
     }
 
     private IEnumerable<IMethodSymbol> DomainFactoryMethods(ITypeSymbol targetType) =>

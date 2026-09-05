@@ -6,6 +6,7 @@ All notable changes to DomainMapper are recorded here. The project follows seman
 
 ### Added
 
+- Warning `DMPR108` reports convention construction of a target that declares an accessible static factory method, so bypassed domain factories are visible in review and can be promoted to errors with `WarningsAsErrors`. `[IgnoreTargetFactory]` records an accepted bypass per mapping and type and is validated as stale when unused.
 - Nested values are mapped through a declared static single-parameter mapping method for the same source and target pair, so child entities honour `[MapToFactory]` and explicit contracts. Ambiguous or cyclic reuse is rejected with `DMPR102`.
 
 ### Fixed

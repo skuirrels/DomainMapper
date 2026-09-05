@@ -78,6 +78,15 @@ internal static class MapperDiagnostics
         true
     );
 
+    internal static readonly DiagnosticDescriptor FactoryBypassed = new(
+        "DMPR108",
+        "Target factory bypassed",
+        "Mapping '{0}' constructs '{1}' through its constructor although the type declares static factory method(s) {2}; route construction through [MapToFactory] or a [DomainFactory], or declare [IgnoreTargetFactory(typeof({1}))] with a reason",
+        "DomainMapper",
+        DiagnosticSeverity.Warning,
+        true
+    );
+
     private static readonly ImmutableDictionary<string, DiagnosticDescriptor> ByIdentifier = new[]
     {
         UnsupportedMethod,
@@ -88,6 +97,7 @@ internal static class MapperDiagnostics
         UnsupportedReferenceTracking,
         InvalidRegistry,
         InvalidProjection,
+        FactoryBypassed,
     }.ToImmutableDictionary(x => x.Id, StringComparer.Ordinal);
 
     public static DiagnosticDescriptor Get(string id) =>

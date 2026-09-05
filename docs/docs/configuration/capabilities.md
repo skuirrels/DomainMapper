@@ -71,6 +71,8 @@ Nullable value types lift through the same conversions as their underlying types
 
 Target-owned factories selected by `MapToFactory` remain mandatory and fail closed. Mapper-owned `DomainFactory` methods support whole-source or member inputs. Additional mapping parameters take precedence at a target factory boundary.
 
+Convention construction of a target that declares an accessible static factory method reports warning `DMPR108` once per mapping and target, whether the constructor is called at the root, in a nested helper, or as a single-value wrap. `[IgnoreTargetFactory(typeof(T), Reason = "...")]` records the decision per mapping and type and is validated as stale when unused; `WarningsAsErrors` promotes the warning to an error project-wide. Generator diagnostics do not observe `.editorconfig` severities or `#pragma warning`.
+
 `MapAfter` binds ordered, typed static completion hooks. Hooks run after generated assignments and receive supported combinations of source, target, and additional parameters. Prefer constructors, target factories, and domain methods for invariant-bearing behavior; hooks must not mutate private state or bypass an aggregate boundary.
 
 ## Collections and recursive graphs
