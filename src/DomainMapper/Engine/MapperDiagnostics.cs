@@ -87,6 +87,15 @@ internal static class MapperDiagnostics
         true
     );
 
+    internal static readonly DiagnosticDescriptor EnumNotMapped = new(
+        "DMPR109",
+        "Enum cannot be mapped by member name",
+        "Mapping '{0}' cannot map enum '{1}' to '{2}' by member name: {3}",
+        "DomainMapper",
+        DiagnosticSeverity.Error,
+        true
+    );
+
     private static readonly ImmutableDictionary<string, DiagnosticDescriptor> ByIdentifier = new[]
     {
         UnsupportedMethod,
@@ -98,6 +107,7 @@ internal static class MapperDiagnostics
         InvalidRegistry,
         InvalidProjection,
         FactoryBypassed,
+        EnumNotMapped,
     }.ToImmutableDictionary(x => x.Id, StringComparer.Ordinal);
 
     public static DiagnosticDescriptor Get(string id) =>

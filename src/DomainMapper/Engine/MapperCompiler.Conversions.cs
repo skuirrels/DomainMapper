@@ -52,6 +52,9 @@ internal sealed partial class MapperCompiler
         if (conversion.Exists && conversion.IsImplicit)
             return sourceExpression;
 
+        if (sourceType.TypeKind == TypeKind.Enum && targetType.TypeKind == TypeKind.Enum)
+            return BuildEnumConversion(sourceType, targetType, sourceExpression, context);
+
         if (targetType is INamedTypeSymbol namedTarget)
         {
             var singleValueConstructor = FindSingleValueConstructor(sourceType, namedTarget);
