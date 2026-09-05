@@ -10,6 +10,12 @@ internal sealed partial class MapperCompiler
 
     private IReadOnlyList<MappingMember> AllReadableMembers(ITypeSymbol type) => GetAllMappingMembers(type).Where(x => x.CanRead).ToArray();
 
+    /// <summary>
+    /// True when the type exposes readable state. A construction that consumes no source data must not produce such a type,
+    /// because the generated <c>new T()</c> would silently drop the source value behind default state.
+    /// </summary>
+    private bool HasReadableState(ITypeSymbol type) => AllReadableMembers(type).Count > 0;
+
     private IReadOnlyList<MappingMember> WritableMembers(ITypeSymbol type) =>
         GetConventionMappingMembers(type).Where(x => x.CanWrite && !x.IsInitOnly).ToArray();
 
