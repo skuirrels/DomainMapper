@@ -22,49 +22,8 @@ internal sealed partial class MapperCompiler
         if (declaredMapping != null)
             return $"{Escape(declaredMapping.Name)}({sourceExpression})";
 
-        if (targetType.IsReferenceType && targetType.NullableAnnotation == NullableAnnotation.Annotated)
-        {
-            var nonNullableTarget = targetType.WithNullableAnnotation(NullableAnnotation.NotAnnotated);
-            if (sourceType.IsReferenceType && sourceType.NullableAnnotation == NullableAnnotation.Annotated)
-            {
-                var nonNullableSource = sourceType.WithNullableAnnotation(NullableAnnotation.NotAnnotated);
-                var nullableExpression = ConvertExpression(nonNullableSource, nonNullableTarget, sourceExpression, context);
-                return nullableExpression == null ? null : $"{sourceExpression} is null ? null : {nullableExpression}";
-            }
-
-            if (IsNullableValueType(sourceType, out var sourceUnderlying))
-            {
-                var lifted = ConvertExpression(
-                    sourceUnderlying,
-                    nonNullableTarget,
-                    NonNullExpression(sourceExpression, sourceType),
-                    context
-                );
-                return lifted == null ? null : $"{sourceExpression} is null ? null : {lifted}";
-            }
-
-            return ConvertExpression(sourceType, nonNullableTarget, sourceExpression, context);
-        }
-
-        if (IsNullableValueType(targetType, out var targetUnderlying))
-        {
-            var liftedConversion = _compilation.ClassifyConversion(sourceType, targetType);
-            if (liftedConversion.Exists && liftedConversion.IsImplicit)
-                return sourceExpression;
-
-            if (IsNullable(sourceType))
-            {
-                var lifted = ConvertExpression(
-                    NonNullableType(sourceType),
-                    targetUnderlying,
-                    NonNullExpression(sourceExpression, sourceType),
-                    context
-                );
-                return lifted == null ? null : $"{sourceExpression} is null ? default({TypeName(targetType)}) : {lifted}";
-            }
-
-            return ConvertExpression(sourceType, targetUnderlying, sourceExpression, context);
-        }
+        if (TryLiftNullableConversion(sourceType, targetType, sourceExpression, context, out var liftedExpression))
+            return liftedExpression;
 
         if (sourceType.IsReferenceType && sourceType.NullableAnnotation == NullableAnnotation.Annotated)
             return null;
@@ -105,6 +64,65 @@ internal sealed partial class MapperCompiler
         }
 
         return QueueObjectHelper(sourceType, targetType, sourceExpression, context);
+    }
+
+    /// <summary>
+    /// Handles nullable targets of either kind. A nullable source is guarded and converted through its underlying type;
+    /// a non-nullable source converts to the underlying target and lifts implicitly. Returns false when the target is not
+    /// nullable, so the caller continues with the remaining conversion policy.
+    /// </summary>
+    private bool TryLiftNullableConversion(
+        ITypeSymbol sourceType,
+        ITypeSymbol targetType,
+        string sourceExpression,
+        MappingContext context,
+        out string? expression
+    )
+    {
+        expression = null;
+        if (targetType.IsReferenceType && targetType.NullableAnnotation == NullableAnnotation.Annotated)
+        {
+            var nonNullableTarget = targetType.WithNullableAnnotation(NullableAnnotation.NotAnnotated);
+            if (sourceType.IsReferenceType && sourceType.NullableAnnotation == NullableAnnotation.Annotated)
+            {
+                var nonNullableSource = sourceType.WithNullableAnnotation(NullableAnnotation.NotAnnotated);
+                var converted = ConvertExpression(nonNullableSource, nonNullableTarget, sourceExpression, context);
+                expression = converted == null ? null : $"{sourceExpression} is null ? null : {converted}";
+            }
+            else if (IsNullableValueType(sourceType, out var sourceUnderlying))
+            {
+                var converted = ConvertExpression(
+                    sourceUnderlying,
+                    nonNullableTarget,
+                    NonNullExpression(sourceExpression, sourceType),
+                    context
+                );
+                expression = converted == null ? null : $"{sourceExpression} is null ? null : {converted}";
+            }
+            else
+                expression = ConvertExpression(sourceType, nonNullableTarget, sourceExpression, context);
+            return true;
+        }
+
+        if (!IsNullableValueType(targetType, out var targetUnderlying))
+            return false;
+
+        var liftedConversion = _compilation.ClassifyConversion(sourceType, targetType);
+        if (liftedConversion.Exists && liftedConversion.IsImplicit)
+            expression = sourceExpression;
+        else if (IsNullable(sourceType))
+        {
+            var converted = ConvertExpression(
+                NonNullableType(sourceType),
+                targetUnderlying,
+                NonNullExpression(sourceExpression, sourceType),
+                context
+            );
+            expression = converted == null ? null : $"{sourceExpression} is null ? default({TypeName(targetType)}) : {converted}";
+        }
+        else
+            expression = ConvertExpression(sourceType, targetUnderlying, sourceExpression, context);
+        return true;
     }
 
     [SuppressMessage(
