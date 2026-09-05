@@ -55,12 +55,21 @@ jobs:
           retention_days: 35
   package:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
       - run: sudo apt update && sudo apt -y install zipmerge # zipmerge is used to merge the multi target nupkg
       - uses: actions/setup-dotnet@v6
       - run: dotnet tool restore
-      - run: RELEASE_VERSION="1.2.0-dev.$GITHUB_RUN_ID" ./build/package.sh
+      # the development version is owned by Directory.Build.props; only the run id is appended here
+      - id: version
+        run: |
+          dev_version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
+          echo "version=${dev_version}.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+      - run: RELEASE_VERSION="${{ steps.version.outputs.version }}" ./build/package.sh
       - uses: actions/upload-artifact@v7
         with:
           name: domainmapper-nupkg
@@ -84,11 +93,9 @@ jobs:
         with:
           name: domainmapper-nupkg
           path: artifacts
-      # Rule 52 anonymously probes repository and project URLs, which cannot succeed while the repository is private.
       - run: |
           for package in ./artifacts/*.nupkg; do
-            dotnet meziantou.validate-nuget-package --github-token "$GITHUB_TOKEN" \
-              --excluded-rule-ids 52 "$package"
+            dotnet meziantou.validate-nuget-package --github-token "$GITHUB_TOKEN" "$package"
           done
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -128,7 +135,7 @@ jobs:
           dotnet build
           -f net${{ matrix.dotnet }}
           -p:DomainMapperPackageSmokeTargetFramework=net${{ matrix.dotnet }}
-          -p:DomainMapperNugetPackageVersion="1.2.0-dev.$GITHUB_RUN_ID"
+          -p:DomainMapperNugetPackageVersion="${{ needs.package.outputs.version }}"
         working-directory: ./samples/DomainMapper.PackageSmoke
       - run: >-
           dotnet run --no-build
@@ -140,7 +147,7 @@ jobs:
           -f net${{ matrix.dotnet }}
           -p:DomainMapperPackageSmokeTargetFramework=net${{ matrix.dotnet }}
           -p:DomainMapperProjectionSmoke=true
-          -p:DomainMapperNugetPackageVersion="1.2.0-dev.$GITHUB_RUN_ID"
+          -p:DomainMapperNugetPackageVersion="${{ needs.package.outputs.version }}"
         working-directory: ./samples/DomainMapper.PackageSmoke
   integration-test-net-framework:
     needs: package
@@ -160,7 +167,7 @@ jobs:
           dotnet build
           -f net48
           -p:DomainMapperPackageSmokeTargetFramework=net48
-          -p:DomainMapperNugetPackageVersion=1.2.0-dev.$env:GITHUB_RUN_ID
+          -p:DomainMapperNugetPackageVersion=${{ needs.package.outputs.version }}
         working-directory: ./samples/DomainMapper.PackageSmoke
       - run: >-
           dotnet run --no-build
@@ -172,7 +179,7 @@ jobs:
           -f net48
           -p:DomainMapperPackageSmokeTargetFramework=net48
           -p:DomainMapperProjectionSmoke=true
-          -p:DomainMapperNugetPackageVersion=1.2.0-dev.$env:GITHUB_RUN_ID
+          -p:DomainMapperNugetPackageVersion=${{ needs.package.outputs.version }}
         working-directory: ./samples/DomainMapper.PackageSmoke
   sample:
     runs-on: ubuntu-latest
@@ -191,7 +198,7 @@ jobs:
       # use nupkg artifact instead of project references
       - run: dotnet nuget add source "$(pwd)/artifacts"
       - run: dotnet clean
-      - run: dotnet build -p:DomainMapperNugetPackageVersion="1.2.0-dev.$GITHUB_RUN_ID"
+      - run: dotnet build -p:DomainMapperNugetPackageVersion="${{ needs.package.outputs.version }}"
         working-directory: ./samples/DomainMapper.Sample
       - run: dotnet run --no-build
         working-directory: ./samples/DomainMapper.Sample
@@ -209,5 +216,5 @@ jobs:
       - run: >-
           dotnet publish samples/DomainMapper.AotSmoke/DomainMapper.AotSmoke.csproj
           --configuration Release -p:HUSKY=0 -p:TreatWarningsAsErrors=true
-          -p:DomainMapperNugetPackageVersion="1.2.0-dev.$GITHUB_RUN_ID"
+          -p:DomainMapperNugetPackageVersion="${{ needs.package.outputs.version }}"
       - run: ./artifacts/publish/DomainMapper.AotSmoke/release/DomainMapper.AotSmoke

@@ -1,9 +1,18 @@
 // @ts-check
 /** @typedef {import('@docusaurus/types').Config} Config */
 
+const fs = require('fs');
+const path = require('path');
 const { themes } = require('prism-react-renderer');
 
-const domainMapperVersion = process.env.DOMAINMAPPER_VERSION || '1.2.0-dev';
+// The development version is owned by Directory.Build.props at the repository root.
+const buildProps = fs.readFileSync(
+  path.join(__dirname, '..', 'Directory.Build.props'),
+  'utf8',
+);
+const developmentVersion = /<Version>([^<]+)<\/Version>/.exec(buildProps)?.[1];
+const domainMapperVersion =
+  process.env.DOMAINMAPPER_VERSION || developmentVersion || 'dev';
 const environment = process.env.ENVIRONMENT || 'local';
 
 /** @type {import('./src/custom-fields').CustomFields} */

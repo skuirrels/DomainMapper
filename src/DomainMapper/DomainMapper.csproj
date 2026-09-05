@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>1.1.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>1.2.1</PackageValidationBaselineVersion>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -17,9 +17,8 @@
     </PackageDescription>
     <PackageTags>DDD Mapper SourceGenerator DomainDrivenDesign</PackageTags>
     <PackageIcon>logo.png</PackageIcon>
-    <!-- default roslyn version and constants, compare 4 numeric part versions -->
+    <!-- default roslyn version; each supported version has a DomainMapper.Roslyn*.props file -->
     <ROSLYN_VERSION Condition="'$(ROSLYN_VERSION)' == ''">5.0</ROSLYN_VERSION>
-    <DefineConstants Condition="'$(ROSLYN_VERSION).0.0' &gt;= '5.0.0.0'">$(DefineConstants);ROSLYN5_0_OR_GREATER</DefineConstants>
   </PropertyGroup>
   <Target Name="Husky" BeforeTargets="Restore;CollectPackageReferences" Condition="'$(HUSKY)' != 0 AND '$(CI)' == ''">
     <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" />
@@ -34,9 +33,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DomainMapper.Abstractions\DomainMapper.Abstractions.csproj" PrivateAssets="all" />
-  </ItemGroup>
-  <ItemGroup Condition="!$(DefineConstants.Contains('DEBUG_SOURCE_GENERATOR'))">
-    <Compile Remove="Helpers/DebuggerUtil.cs" />
   </ItemGroup>
   <!--
   This ensures the library will be packaged as a source generator when we use `dotnet pack`

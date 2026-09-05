@@ -7,11 +7,12 @@ set -Eeuo pipefail
 
 roslyn_versions=('4.8' '4.11' '4.14' '5.0')
 
-RELEASE_VERSION=${RELEASE_VERSION:-"1.2.0-dev.$(date +%s)"}
-RELEASE_NOTES=${RELEASE_NOTES:-''}
-
 # https://stackoverflow.com/a/246128/3302887
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+dev_version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "${script_dir}/../Directory.Build.props")
+RELEASE_VERSION=${RELEASE_VERSION:-"${dev_version}.$(date +%s)"}
+RELEASE_NOTES=${RELEASE_NOTES:-''}
+
 artifacts_dir="${script_dir}/../artifacts"
 
 echo "building DomainMapper v${RELEASE_VERSION} for ${DOMAINMAPPER_ENVIRONMENT:-'local'}"

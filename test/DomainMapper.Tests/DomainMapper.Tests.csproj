@@ -1,13 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <!-- Running every Roslyn-heavy generator test concurrently can exhaust the test host.
-        Use xUnit's four-thread collection parallelism for a deterministic local and CI gate. -->
-    <IncludeMeziantouXunitParallelTestFramework>false</IncludeMeziantouXunitParallelTestFramework>
-  </PropertyGroup>
+  <!-- Roslyn-heavy generator tests can exhaust the test host; xunit.runner.json limits collection parallelism to four threads. -->
   <ItemGroup>
     <ProjectReference Include="../../src/DomainMapper.Projections/DomainMapper.Projections.csproj" />
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\..\.github\workflows\release.yml" Link="release.yml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\.github\workflows\release.yml" Link="Repository\release.yml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\.github\workflows\test.yml" Link="Repository\test.yml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\build\package.sh" Link="Repository\package.sh" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\CHANGELOG.md" Link="Repository\CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\README.md" Link="Repository\README.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\Directory.Build.props" Link="Repository\Directory.Build.props" CopyToOutputDirectory="PreserveNewest" />
+    <None
+      Include="..\..\src\DomainMapper\DomainMapper.csproj"
+      Link="Repository\DomainMapper.csproj"
+      CopyToOutputDirectory="PreserveNewest"
+    />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />

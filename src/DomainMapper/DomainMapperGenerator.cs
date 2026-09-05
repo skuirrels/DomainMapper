@@ -12,27 +12,29 @@ public sealed class DomainMapperGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var mapperTypes = context
+        // The transform performs the complete generation and yields plain data. Holding symbols or the
+        // compilation in the cached value would keep every previous compilation alive in the IDE, so the
+        // driver instead compares emitted results and re-adds only the mappers whose output changed.
+        var mappers = context
             .SyntaxProvider.ForAttributeWithMetadataName(
                 MapperAttribute,
                 static (node, _) => node is TypeDeclarationSyntax,
-                static (attributeContext, _) =>
-                    MapperGenerationInput.Create(
+                static (attributeContext, cancellationToken) =>
+                    MapperCompiler.Compile(
                         (INamedTypeSymbol)attributeContext.TargetSymbol,
-                        attributeContext.SemanticModel.Compilation
+                        attributeContext.SemanticModel.Compilation,
+                        cancellationToken
                     )
             )
-            .WithComparer(MapperGenerationInputComparer.Instance)
             .WithTrackingName("MapperContracts");
 
         context.RegisterSourceOutput(
-            mapperTypes,
-            static (productionContext, input) =>
+            mappers,
+            static (productionContext, result) =>
             {
-                var result = MapperCompiler.Compile(input.MapperType, input.Compilation, productionContext.CancellationToken);
                 foreach (var diagnostic in result.Diagnostics)
                 {
-                    productionContext.ReportDiagnostic(diagnostic);
+                    productionContext.ReportDiagnostic(diagnostic.ToDiagnostic());
                 }
 
                 if (result.Source != null)

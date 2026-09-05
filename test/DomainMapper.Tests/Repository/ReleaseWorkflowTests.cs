@@ -5,7 +5,7 @@ public sealed class ReleaseWorkflowTests
     [Fact]
     public void NuGetVersionIsDerivedFromTheReleaseTag()
     {
-        var workflow = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "release.yml"));
+        var workflow = RepositoryFile.Read("release.yml");
 
         workflow.ShouldContain("RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}");
         workflow.ShouldContain("RELEASE_VERSION=${RELEASE_TAG#v}");
@@ -19,7 +19,7 @@ public sealed class ReleaseWorkflowTests
     [Fact]
     public void NuGetPublishingUsesOnlyTheStableOidcEnvironment()
     {
-        var workflow = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "release.yml"));
+        var workflow = RepositoryFile.Read("release.yml");
 
         workflow.ShouldContain("workflow_dispatch:");
         workflow.ShouldContain("if: ${{ github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false }}");

@@ -14,7 +14,7 @@ on:
       version:
         required: false
         type: string
-        default: '1.2.0-dev'
+        default: ''
   workflow_dispatch:
     inputs:
       deploy:
@@ -33,8 +33,8 @@ on:
       version:
         required: false
         type: string
-        default: '1.2.0-dev'
-        description: The version of DomainMapper to be referenced from the documentation
+        default: ''
+        description: Released version to reference from the docs; empty uses the development version in Directory.Build.props
   pull_request:
     branches:
       - '**'
@@ -96,10 +96,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      # we never want to deploy with no version set
+      # we never want to deploy with no released version set
       # stop the deployment here
       - name: Version not set
-        if: ${{ inputs.version == '' || inputs.version == '1.2.0-dev' }}
+        if: ${{ inputs.version == '' || endsWith(inputs.version, '-dev') }}
         run: exit 1
       - uses: actions/deploy-pages@v5
         id: deployment
