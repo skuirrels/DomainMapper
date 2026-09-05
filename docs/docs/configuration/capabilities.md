@@ -93,6 +93,8 @@ The supported subset includes constructors, member initialization, renames, nest
 
 ## Mapping composition and inheritance
 
+Nested values whose source and target types exactly match a declared static, non-generic, single-parameter mapping method in the same mapper are mapped by calling that method, so child entities honour their own `[MapToFactory]`, bindings, ignores, and null policies. Reuse never applies to a mapping's own root pair, inside `[MapMaxDepth]` or `[MapReferenceTracking]` contexts, or when more than one declared method matches the pair (`DMPR102`). Declared methods that reuse each other in a cycle are rejected with `DMPR102`; `[MapMaxDepth]` on one of them breaks the cycle. Projections cannot call mapping methods, so a nested pair owned by a declared method with explicit configuration or a target factory is not projectable (`DMPR106`).
+
 Accessible inherited properties participate in convention and completeness checks. Explicitly configured inherited fields participate in the same contract. `IncludeMapping(nameof(BaseMap))` reuses the explicit member bindings from a base mapping in the same mapper. Included mappings are resolved at build time; a derived mapping may override a binding without mutating the base contract, while missing, ambiguous, cyclic, or conflicting includes produce `DMPR102`.
 
 ## Current limitations

@@ -53,6 +53,7 @@ DomainMapper 1.2 supports:
 - closed-world generated runtime dispatch with explicit derived-source opt-in;
 - cached provider-neutral expression projections through the separate `DomainMapper.Projections` contract package;
 - nested and generic mapper types and generic mapping methods;
+- reuse of declared single-parameter mapping methods for nested values, so child entities honour their own factories and contracts;
 - direct generated code that enumerates general sequences and preallocates only when the source exposes a count.
 
 Fields participate when they are named by an explicit mapping contract; convention mapping remains property-only for compatibility. See the [authoritative capabilities and limitations](docs/docs/configuration/capabilities.md) and [versioned changelog](CHANGELOG.md).

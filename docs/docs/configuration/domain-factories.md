@@ -21,4 +21,22 @@ The named factory must be static, accessible, and return the mapping target. Eve
 - `DomainFactoryInput.Source` passes the complete source value to exactly one factory parameter.
 - `DomainFactoryInput.Members` binds factory parameters from same-named members of the value being converted, then from additional mapping parameters. Members of the value being converted take precedence over ambient parameters.
 
+## Child entities
+
+Declare a mapping method for each child entity. Nested values whose types match that method's source and target are mapped by calling it, so the child's `[MapToFactory]` is honoured inside collections and members:
+
+```csharp
+[DomainMapper]
+public static partial class OrderMapper
+{
+    [MapToFactory(nameof(OrderLine.Create))]
+    public static partial OrderLine ToLine(OrderLineDto source);
+
+    [MapToFactory(nameof(Order.Place))]
+    public static partial Order Place(OrderDto source);
+}
+```
+
+`Place` maps `source.Lines` element by element through `ToLine`. A `[DomainFactory]` for the same pair takes precedence, and reuse is skipped under `[MapMaxDepth]` and `[MapReferenceTracking]`.
+
 Domain factories must be static, non-generic, and return a value. These rules keep generated calls valid from static mapping methods and prevent the generator from bypassing domain construction.

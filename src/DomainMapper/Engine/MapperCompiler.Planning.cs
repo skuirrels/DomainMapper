@@ -1295,6 +1295,12 @@ internal sealed partial class MapperCompiler
         if (CanUseDomainFactory(sourceType, targetType, context, visiting))
             return true;
 
+        var declaredMapping = ResolveDeclaredMapping(sourceType, targetType, context, false, out var ambiguousMapping);
+        if (ambiguousMapping)
+            return false;
+        if (declaredMapping != null)
+            return true;
+
         if (targetType.IsReferenceType && targetType.NullableAnnotation == NullableAnnotation.Annotated)
         {
             var nonNullableTarget = targetType.WithNullableAnnotation(NullableAnnotation.NotAnnotated);

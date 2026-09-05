@@ -4,6 +4,10 @@ All notable changes to DomainMapper are recorded here. The project follows seman
 
 ## [Unreleased]
 
+### Added
+
+- Nested values are mapped through a declared static single-parameter mapping method for the same source and target pair, so child entities honour `[MapToFactory]` and explicit contracts. Ambiguous or cyclic reuse is rejected with `DMPR102`.
+
 ### Fixed
 
 - Parameterless construction that consumes no source data now fails with `DMPR101` instead of emitting `new T()` and silently dropping the source value behind default state.
