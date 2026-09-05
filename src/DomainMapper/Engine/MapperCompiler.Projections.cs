@@ -189,6 +189,16 @@ internal sealed partial class MapperCompiler
                 || namedTarget.IsAbstract
             )
                 return null;
+
+            // The in-memory mapping calls the declared method for this pair; an expression tree cannot, so only a
+            // convention-only declared mapping is equivalent to projecting the pair by convention.
+            var declaredMapping = ResolveDeclaredMapping(sourceType, targetType, context, false, out var ambiguousMapping);
+            if (
+                ambiguousMapping
+                || (declaredMapping != null && (HasExplicitConfiguration(declaredMapping) || ReadFactoryName(declaredMapping) != null))
+            )
+                return null;
+
             var configuration = RootConfiguration(context, sourceType, targetType);
             foreach (
                 var constructor in namedTarget
@@ -304,7 +314,9 @@ internal sealed partial class MapperCompiler
         }
         if (configuration?.NullBehaviors.TryGetValue(targetMemberName, out var behavior) == true && behavior != 0)
             return null;
-        return BuildProjectionExpression(sourceValueType, targetMemberType, sourceValue, context, visiting, out failureMember);
+        var memberValue = BuildProjectionExpression(sourceValueType, targetMemberType, sourceValue, context, visiting, out failureMember);
+        failureMember ??= targetMemberName;
+        return memberValue;
     }
 
     private static string BuildProjectionSourcePath(string sourceExpression, ImmutableArray<MappingMember> path, ITypeSymbol effectiveType)

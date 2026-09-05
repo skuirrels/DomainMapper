@@ -66,6 +66,8 @@ internal sealed partial class MapperCompiler
     private readonly List<string> _supportMembers = [];
     private readonly Dictionary<IMethodSymbol, MappingMethodConfiguration> _configurations = new(SymbolEqualityComparer.Default);
     private readonly HashSet<IMethodSymbol> _successfulMappingMethods = new(SymbolEqualityComparer.Default);
+    private readonly Dictionary<IMethodSymbol, HashSet<IMethodSymbol>> _declaredMappingReuse = new(SymbolEqualityComparer.Default);
+    private readonly HashSet<string> _reportedAmbiguousReuse = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ImmutableArray<INamedTypeSymbol>> _attributeTypes = new(StringComparer.Ordinal);
     private string? _referenceKeyName;
 
@@ -130,6 +132,7 @@ internal sealed partial class MapperCompiler
             BuildHelperContract(_pendingHelpers.Dequeue());
         }
 
+        RejectDeclaredMappingCycles();
         BuildProjections();
         BuildRuntimeRegistry();
 

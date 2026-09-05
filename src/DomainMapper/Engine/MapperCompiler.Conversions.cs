@@ -16,6 +16,12 @@ internal sealed partial class MapperCompiler
         if (domainConversion != null)
             return domainConversion;
 
+        var declaredMapping = ResolveDeclaredMapping(sourceType, targetType, context, true, out var ambiguousMapping);
+        if (ambiguousMapping)
+            return null;
+        if (declaredMapping != null)
+            return $"{Escape(declaredMapping.Name)}({sourceExpression})";
+
         if (targetType.IsReferenceType && targetType.NullableAnnotation == NullableAnnotation.Annotated)
         {
             var nonNullableTarget = targetType.WithNullableAnnotation(NullableAnnotation.NotAnnotated);
