@@ -4,6 +4,8 @@ All notable changes to DomainMapper are recorded here. The project follows seman
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-09-05
+
 ### Changed
 
 - Generated members are stamped with the generator assembly version instead of a fixed `0.0.1.0`.
@@ -73,7 +75,8 @@ All notable changes to DomainMapper are recorded here. The project follows seman
 - Compile-time convention mapping for mutable and immutable targets.
 - Target-owned and mapper-owned factories, collection and dictionary mapping, and existing-target updates.
 
-[Unreleased]: https://github.com/skuirrels/DomainMapper/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/skuirrels/DomainMapper/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/skuirrels/DomainMapper/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/skuirrels/DomainMapper/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/skuirrels/DomainMapper/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/skuirrels/DomainMapper/compare/v1.0.0...v1.1.0
