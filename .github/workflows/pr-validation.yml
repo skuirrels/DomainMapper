@@ -8,9 +8,12 @@ on:
       - labeled
       - unlabeled
 
+# A pull request opened with labels fires `opened` and `labeled` back to back. Cancelling the first run left a
+# cancelled check-changelog-labels run on the head commit, which branch protection treated as a failed required
+# check until it was rerun. The job takes seconds, so both runs complete instead.
 concurrency:
   group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   check-changelog-labels:
