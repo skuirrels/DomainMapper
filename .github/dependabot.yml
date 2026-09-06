@@ -13,6 +13,11 @@ updates:
       # DomainMapper.Roslyn*.props pin the minimum compiler of each analyzer lane on purpose; raising a pin drops
       # every host below it from the compatibility matrix and is a versioned decision, not a dependency update.
       - dependency-name: "Microsoft.CodeAnalysis.CSharp"
+    groups:
+      # Verify.DiffPlex and Verify.XUnit share the Verify core; bumping one alone fails with MethodAccessException.
+      verify:
+        patterns:
+          - "Verify.*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
