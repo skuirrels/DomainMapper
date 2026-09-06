@@ -9,6 +9,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      # DomainMapper.Roslyn*.props pin the minimum compiler of each analyzer lane on purpose; raising a pin drops
+      # every host below it from the compatibility matrix and is a versioned decision, not a dependency update.
+      - dependency-name: "Microsoft.CodeAnalysis.CSharp"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -21,6 +25,10 @@ updates:
     directory: "/docs"
     schedule:
       interval: "weekly"
+    ignore:
+      # typescript-eslint's peer range excludes TypeScript 7; a major bump breaks docs dependency resolution.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       docs-dependencies:
         patterns:
