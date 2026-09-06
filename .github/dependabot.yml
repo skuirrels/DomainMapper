@@ -13,6 +13,9 @@ updates:
       # DomainMapper.Roslyn*.props pin the minimum compiler of each analyzer lane on purpose; raising a pin drops
       # every host below it from the compatibility matrix and is a versioned decision, not a dependency update.
       - dependency-name: "Microsoft.CodeAnalysis.CSharp"
+      # Verify.DiffPlex 3.2.0 and later need Verify core 31.18+, but Verify.XUnit for xunit v2 stops at core 31.12.5;
+      # newer cores ship only as Verify.XunitV3. Lift this ignore when the tests move to xunit v3.
+      - dependency-name: "Verify.DiffPlex"
     groups:
       # Verify.DiffPlex and Verify.XUnit share the Verify core; bumping one alone fails with MethodAccessException.
       verify:
